@@ -1,0 +1,24 @@
+<!-- BEGIN_INCLUDE(sitewhere:device-emulator) -->
+    <sitewhere:device-emulator/>
+<!-- END_INCLUDE(sitewhere:device-emulator) -->
+<!-- BEGIN_INCLUDE(sitewhere:find-device-by-hardware-id) -->
+    <sitewhere:find-device-by-hardware-id hardwareId="bb-12335-76454"/>
+<!-- END_INCLUDE(sitewhere:find-device-by-hardware-id) -->
+<!-- BEGIN_INCLUDE(sitewhere:save-device-events) -->
+    <sitewhere:save-device-events/>
+<!-- END_INCLUDE(sitewhere:save-device-events) -->
+<!-- BEGIN_INCLUDE(sitewhere:get-device-assignment-history) -->
+    <sitewhere:get-device-assignment-history hardwareId="bb-12335-76454"/>
+<!-- END_INCLUDE(sitewhere:get-device-assignment-history) -->
+<!-- BEGIN_INCLUDE(sitewhere:perform-zone-checks) -->
+    <sitewhere:perform-zone-checks delegate="com.test.MyZoneDelegate"/>
+<!-- END_INCLUDE(sitewhere:perform-zone-checks) -->
+<!-- BEGIN_INCLUDE(sitewhere:sitewhere-delegate) -->
+    <sitewhere:sitewhere-delegate delegate="com.test.MySiteWhereDelegate"/>
+<!-- END_INCLUDE(sitewhere:sitewhere-delegate) -->
+<!-- BEGIN_INCLUDE(sitewhere:update-assignment-location) -->
+    <sitewhere:update-assignment-location token="f734cc4a-0a38-4f39-a6ef-93d5b19e3bda"/>
+<!-- END_INCLUDE(sitewhere:update-assignment-location) -->
+<!-- BEGIN_INCLUDE(sitewhere:payload-to-sitewhere-context) -->
+    <sitewhere:payload-to-sitewhere-context delegate="com.test.MySiteWhereDelegate"/>
+<!-- END_INCLUDE(sitewhere:payload-to-sitewhere-context) -->
