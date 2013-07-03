@@ -1,6 +1,6 @@
-<!-- BEGIN_INCLUDE(sitewhere:device-emulator) -->
-    <sitewhere:device-emulator/>
-<!-- END_INCLUDE(sitewhere:device-emulator) -->
+<!-- BEGIN_INCLUDE(sitewhere:context-logger) -->
+    <sitewhere:context-logger/>
+<!-- END_INCLUDE(sitewhere:context-logger) -->
 <!-- BEGIN_INCLUDE(sitewhere:find-device-by-hardware-id) -->
     <sitewhere:find-device-by-hardware-id hardwareId="bb-12335-76454"/>
 <!-- END_INCLUDE(sitewhere:find-device-by-hardware-id) -->

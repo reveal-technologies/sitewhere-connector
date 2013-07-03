@@ -11,7 +11,6 @@ import java.util.List;
 import javax.inject.Inject;
 
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.mule.api.MuleContext;
 import org.mule.api.MuleEvent;
 import org.mule.api.MuleException;
@@ -22,13 +21,15 @@ import org.mule.api.annotations.display.FriendlyName;
 import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.annotations.param.Optional;
-import org.mule.api.callback.SourceCallback;
 import org.mule.api.context.MuleContextAware;
 import org.mule.api.lifecycle.Lifecycle;
 import org.mule.api.processor.MessageProcessor;
 import org.mule.api.processor.MessageProcessorChain;
 import org.mule.processor.chain.SimpleMessageProcessorChain;
 
+import com.fasterxml.jackson.core.PrettyPrinter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sitewhere.mule.emulator.EmulatorFlowConstruct;
 import com.sitewhere.mule.emulator.EmulatorJerseyComponent;
 import com.sitewhere.mule.emulator.JerseyResponseProcessor;
@@ -69,6 +70,9 @@ public class SiteWhereConnector {
 
 	/** Processors that enable emulator functionality */
 	private MessageProcessorChain emulatorProcessors;
+
+	/** Used for printing JSON output */
+	private PrettyPrinter jsonPrinter = new DefaultPrettyPrinter();
 
 	/**
 	 * SiteWhere API URL.
@@ -128,51 +132,46 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Creates an emulator that processes REST calls that emulate device updates.
+	 * Logs information about the current SiteWhere context to the console.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:device-emulator}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:context-logger}
 	 * 
-	 * @param afterChain
-	 *            processors to be invoked if emulator call was successful
 	 * @param event
 	 *            injected Mule event
 	 * @return the event after processing.
 	 * @throws MuleException
-	 *             if the emulator fails
+	 *             should not be thrown
 	 */
 	@Inject
-	@Processor(intercepting = true)
-	public MuleEvent deviceEmulator(SourceCallback afterChain, MuleEvent event) throws MuleException {
-		MuleEvent result = emulatorProcessors.process(event);
+	@Processor()
+	public MuleEvent contextLogger(MuleEvent event) throws MuleException {
 		try {
-			ISiteWhereContext context = getSiteWhereContext(result);
+			ISiteWhereContext context = getSiteWhereContext(event);
 			if (getDebug()) {
 				try {
 					if (context.getDevice() != null) {
-						String deviceAsJson = jsonMapper.defaultPrettyPrintingWriter().writeValueAsString(
+						String deviceAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(
 								context.getDevice());
 						LOGGER.info("\n\n*** SITEWHERE DEVICE ***\n\n" + deviceAsJson);
 					}
 					for (IDeviceMeasurements measurements : context.getDeviceMeasurements()) {
-						String measurementsAsJson = jsonMapper.defaultPrettyPrintingWriter()
-								.writeValueAsString(measurements);
+						String measurementsAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(
+								measurements);
 						LOGGER.info("\n\n*** SITEWHERE DEVICE MEASUREMENTS ***\n\n" + measurementsAsJson);
 					}
 					for (IDeviceLocation location : context.getDeviceLocations()) {
-						String locationAsJson = jsonMapper.defaultPrettyPrintingWriter().writeValueAsString(
-								location);
+						String locationAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(location);
 						LOGGER.info("\n\n*** SITEWHERE DEVICE LOCATION ***\n\n" + locationAsJson);
 					}
 					for (IDeviceAlert alert : context.getDeviceAlerts()) {
-						String alertAsJson = jsonMapper.defaultPrettyPrintingWriter().writeValueAsString(
-								alert);
+						String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
 						LOGGER.info("\n\n*** SITEWHERE DEVICE ALERT ***\n\n" + alertAsJson);
 					}
 				} catch (Throwable e) {
 					LOGGER.error("Unable to marshal SiteWhere debug information.", e);
 				}
 			}
-			return afterChain.processEvent(result);
+			return event;
 		} catch (SiteWhereException e) {
 			return event;
 		}
