@@ -21,18 +21,11 @@ import org.mule.api.annotations.display.FriendlyName;
 import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.annotations.param.Optional;
-import org.mule.api.context.MuleContextAware;
-import org.mule.api.lifecycle.Lifecycle;
-import org.mule.api.processor.MessageProcessor;
-import org.mule.api.processor.MessageProcessorChain;
-import org.mule.processor.chain.SimpleMessageProcessorChain;
 
 import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sitewhere.mule.emulator.EmulatorFlowConstruct;
-import com.sitewhere.mule.emulator.EmulatorJerseyComponent;
-import com.sitewhere.mule.emulator.JerseyResponseProcessor;
+import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.Device;
 import com.sitewhere.rest.model.device.DeviceAlert;
@@ -50,12 +43,13 @@ import com.sitewhere.spi.device.IDeviceLocation;
 import com.sitewhere.spi.device.IDeviceMeasurements;
 import com.sitewhere.spi.mule.IMuleProperties;
 import com.sitewhere.spi.mule.delegate.IOperationLifecycleDelegate;
+import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
 import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
 import com.sitewhere.spi.mule.delegate.IZoneDelegate;
 
 /**
- * SiteWhere is a cloud-based M2M platform. The Mule cloud connector allows SiteWhere operations to be
- * executed from within a Mule flow.
+ * SiteWhere is a cloud-based M2M platform. The Mule cloud connector allows SiteWhere operations to
+ * be executed from within a Mule flow.
  * 
  * @author MuleSoft, Inc.
  */
@@ -67,9 +61,6 @@ public class SiteWhereConnector {
 
 	/** SiteWhere client */
 	private SiteWhereClient client;
-
-	/** Processors that enable emulator functionality */
-	private MessageProcessorChain emulatorProcessors;
 
 	/** Used for printing JSON output */
 	private PrettyPrinter jsonPrinter = new DefaultPrettyPrinter();
@@ -102,33 +93,6 @@ public class SiteWhereConnector {
 	public void doStart() throws MuleException {
 		client = new SiteWhereClient(getApiUrl());
 		LOGGER.info("SiteWhere connector using base API url: " + getApiUrl());
-		emulatorProcessors = createEmulatorChain();
-	}
-
-	/**
-	 * Creates a chain of processors that provide emulator functionality.
-	 * 
-	 * @return
-	 * @throws MuleException
-	 */
-	protected MessageProcessorChain createEmulatorChain() throws MuleException {
-		List<MessageProcessor> processors = new ArrayList<MessageProcessor>();
-
-		// Executes the REST service that processes requests.
-		EmulatorJerseyComponent rest = new EmulatorJerseyComponent(client);
-		rest.setMuleContext(muleContext);
-		rest.setFlowConstruct(new EmulatorFlowConstruct(muleContext));
-		processors.add(rest);
-
-		// Pulls SiteWhere context from the response.
-		JerseyResponseProcessor response = new JerseyResponseProcessor();
-		processors.add(response);
-
-		MessageProcessorChain chain = new SimpleMessageProcessorChain(processors);
-		((MuleContextAware) chain).setMuleContext(muleContext);
-		((Lifecycle) chain).initialise();
-		((Lifecycle) chain).start();
-		return chain;
 	}
 
 	/**
@@ -150,21 +114,25 @@ public class SiteWhereConnector {
 			if (getDebug()) {
 				try {
 					if (context.getDevice() != null) {
-						String deviceAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(
-								context.getDevice());
+						String deviceAsJson =
+								jsonMapper.writer(jsonPrinter).writeValueAsString(
+										context.getDevice());
 						LOGGER.info("\n\n*** SITEWHERE DEVICE ***\n\n" + deviceAsJson);
 					}
 					for (IDeviceMeasurements measurements : context.getDeviceMeasurements()) {
-						String measurementsAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(
-								measurements);
-						LOGGER.info("\n\n*** SITEWHERE DEVICE MEASUREMENTS ***\n\n" + measurementsAsJson);
+						String measurementsAsJson =
+								jsonMapper.writer(jsonPrinter).writeValueAsString(measurements);
+						LOGGER.info("\n\n*** SITEWHERE DEVICE MEASUREMENTS ***\n\n"
+								+ measurementsAsJson);
 					}
 					for (IDeviceLocation location : context.getDeviceLocations()) {
-						String locationAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(location);
+						String locationAsJson =
+								jsonMapper.writer(jsonPrinter).writeValueAsString(location);
 						LOGGER.info("\n\n*** SITEWHERE DEVICE LOCATION ***\n\n" + locationAsJson);
 					}
 					for (IDeviceAlert alert : context.getDeviceAlerts()) {
-						String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
+						String alertAsJson =
+								jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
 						LOGGER.info("\n\n*** SITEWHERE DEVICE ALERT ***\n\n" + alertAsJson);
 					}
 				} catch (Throwable e) {
@@ -180,7 +148,8 @@ public class SiteWhereConnector {
 	/**
 	 * Locates a device by its unique hardware id.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:find-device-by-hardware-id}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:find-device-by-hardware-id}
 	 * 
 	 * @param hardwareId
 	 *            unique hardware id of device to find
@@ -196,9 +165,11 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Update the current device assignment location with the latest location information in the request.
+	 * Update the current device assignment location with the latest location information in the
+	 * request.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:update-assignment-location}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:update-assignment-location}
 	 * 
 	 * @param token
 	 *            token to update or blank for current device assignment
@@ -248,8 +219,9 @@ public class SiteWhereConnector {
 	 */
 	@Inject
 	@Processor
-	public ISiteWhereContext saveDeviceEvents(@FriendlyName("Lifecycle Delegate") @Optional String delegate,
-			MuleEvent event) throws SiteWhereException {
+	public ISiteWhereContext saveDeviceEvents(
+			@FriendlyName("Lifecycle Delegate") @Optional String delegate, MuleEvent event)
+			throws SiteWhereException {
 		ISiteWhereContext context = getSiteWhereContext(event);
 		IOperationLifecycleDelegate delegateInstance = null;
 		if (delegate != null) {
@@ -290,7 +262,8 @@ public class SiteWhereConnector {
 	/**
 	 * Get the history of device assignments for a given hardware id.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:get-device-assignment-history}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:get-device-assignment-history}
 	 * 
 	 * @param hardwareId
 	 *            hardware id or blank to use id from device in SiteWhere context
@@ -317,8 +290,8 @@ public class SiteWhereConnector {
 		if (hardwareId == null) {
 			hardwareId = context.getDevice().getHardwareId();
 		}
-		DeviceAssignmentSearchResults history = client.listDeviceAssignmentHistory(context.getDevice()
-				.getHardwareId());
+		DeviceAssignmentSearchResults history =
+				client.listDeviceAssignmentHistory(context.getDevice().getHardwareId());
 		event.getMessage().setPayload(history);
 		if (delegateInstance != null) {
 			delegateInstance.afterOperation(context, client, event);
@@ -348,7 +321,8 @@ public class SiteWhereConnector {
 		List<IDeviceAlert> results = new ArrayList<IDeviceAlert>();
 		if (delegate != null) {
 			delegateInstance = createDelegate(delegate, IZoneDelegate.class);
-			ZoneSearchResults zones = client.listZonesForSite(context.getDeviceAssignment().getSiteToken());
+			ZoneSearchResults zones =
+					client.listZonesForSite(context.getDeviceAssignment().getSiteToken());
 			System.out.println("Zone processor found " + zones.getNumResults() + " zones.");
 			for (Zone zone : zones.getResults()) {
 				Polygon poly = new Polygon();
@@ -361,7 +335,8 @@ public class SiteWhereConnector {
 					int lat = (int) (location.getLatitude() * 100000);
 					int lon = (int) (location.getLongitude() * 100000);
 					boolean inside = poly.contains(new Point(lon, lat));
-					IDeviceAlert alert = delegateInstance.handleZoneResults(context, zone, location, inside);
+					IDeviceAlert alert =
+							delegateInstance.handleZoneResults(context, zone, location, inside);
 					if (alert != null) {
 						results.add(alert);
 					}
@@ -398,14 +373,13 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Populates the SiteWhere context from information in the current Mule event. If not SiteWhere context
-	 * currently exists, one will be created.
+	 * Populates a new SiteWhere context from information in the current Mule event.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:payload-to-sitewhere-context}
-	 * 
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:payload-to-sitewhere-context}
 	 * 
 	 * @param delegate
-	 *            delegate implementing <code>ISiteWhereDelegate</code>
+	 *            delegate implementing <code>IPayloadParserDelegate</code>
 	 * @param event
 	 *            current Mule event
 	 * @return the resulting SiteWhere context.
@@ -414,20 +388,55 @@ public class SiteWhereConnector {
 	 */
 	@Inject
 	@Processor
-	public ISiteWhereContext payloadToSitewhereContext(@FriendlyName("Conversion Delegate") String delegate,
-			MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context;
-		try {
-			context = getSiteWhereContext(event);
-		} catch (SiteWhereException e) {
-			context = new SiteWhereContext();
-		}
-		ISiteWhereDelegate delegateInstance = null;
+	public ISiteWhereContext payloadToSitewhereContext(
+			@FriendlyName("Payload Parser Delegate") String delegate, MuleEvent event)
+			throws SiteWhereException {
+		SiteWhereContext context = new SiteWhereContext();
+		event.setFlowVariable(IMuleProperties.SITEWHERE_CONTEXT, context);
+
+		IPayloadParserDelegate delegateInstance = null;
 		if (delegate != null) {
-			delegateInstance = createDelegate(delegate, ISiteWhereDelegate.class);
-			delegateInstance.process(context, client, event);
+			delegateInstance = createDelegate(delegate, IPayloadParserDelegate.class);
+			delegateInstance.initialize(event);
+			String hardwareId = delegateInstance.getDeviceHardwareId();
+			if (hardwareId == null) {
+				throw new SiteWhereException(
+						"Payload parser delegate returned null for hardware id.");
+			}
+			Device device = client.getDeviceByHardwareId(hardwareId);
+			if (device == null) {
+				throw new SiteWhereException("Device not found for hardware id: " + hardwareId);
+			}
+			context.setDevice(device);
+			context.setDeviceAssignment(device.getAssignment());
+			if (device.getAssignment() != null) {
+				context.setSite(device.getAssignment().getSite());
+			}
+			context.setUnsavedDeviceLocations(delegateInstance.getLocations());
+			context.setUnsavedDeviceMeasurements(delegateInstance.getMeasurements());
+			context.setUnsavedDeviceAlerts(delegateInstance.getAlerts());
+			return context;
+		} else {
+			throw new SiteWhereException("Payload parser delegate required but not specified.");
 		}
-		return context;
+	}
+
+	/**
+	 * Creates a SiteWhere context from the event payload with the assumption that the payload is a
+	 * JSON string repesenting a {@link EmulatorDevice} object.
+	 * 
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:emulator}
+	 * 
+	 * @param event
+	 *            current Mule event
+	 * @return a SiteWhere context built from the payload
+	 * @throws SiteWhereException
+	 *             if there is an error creating the context
+	 */
+	@Inject
+	@Processor
+	public ISiteWhereContext emulator(MuleEvent event) throws SiteWhereException {
+		return payloadToSitewhereContext(EmulatorPayloadParserDelegate.class.getName(), event);
 	}
 
 	/**
@@ -438,8 +447,8 @@ public class SiteWhereConnector {
 	 * @throws SiteWhereException
 	 */
 	protected ISiteWhereContext getSiteWhereContext(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = (ISiteWhereContext) event
-				.getFlowVariable(IMuleProperties.SITEWHERE_CONTEXT);
+		ISiteWhereContext context =
+				(ISiteWhereContext) event.getFlowVariable(IMuleProperties.SITEWHERE_CONTEXT);
 		if (context == null) {
 			throw new SiteWhereException("SiteWhereContext not found in expected flow variable.");
 		}

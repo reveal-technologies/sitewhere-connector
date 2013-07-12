@@ -22,3 +22,6 @@
 <!-- BEGIN_INCLUDE(sitewhere:payload-to-sitewhere-context) -->
     <sitewhere:payload-to-sitewhere-context delegate="com.test.MySiteWhereDelegate"/>
 <!-- END_INCLUDE(sitewhere:payload-to-sitewhere-context) -->
+<!-- BEGIN_INCLUDE(sitewhere:emulator) -->
+    <sitewhere:emulator/>
+<!-- END_INCLUDE(sitewhere:emulator) -->
