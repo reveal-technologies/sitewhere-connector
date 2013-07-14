@@ -26,9 +26,9 @@ import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.Device;
-import com.sitewhere.rest.model.device.DeviceAlert;
+import com.sitewhere.rest.model.device.DeviceEventBatch;
+import com.sitewhere.rest.model.device.DeviceEventBatchResponse;
 import com.sitewhere.rest.model.device.DeviceLocation;
-import com.sitewhere.rest.model.device.DeviceMeasurements;
 import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.service.SiteWhereClient;
 import com.sitewhere.rest.service.search.DeviceAssignmentSearchResults;
@@ -38,7 +38,6 @@ import com.sitewhere.spi.SiteWhereException;
 import com.sitewhere.spi.common.ILocation;
 import com.sitewhere.spi.device.IDeviceAlert;
 import com.sitewhere.spi.device.IDeviceLocation;
-import com.sitewhere.spi.device.IDeviceMeasurements;
 import com.sitewhere.spi.mule.IMuleProperties;
 import com.sitewhere.spi.mule.delegate.IOperationLifecycleDelegate;
 import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
@@ -198,29 +197,21 @@ public class SiteWhereConnector {
 			delegateInstance.beforeOperation(context, client, event);
 		}
 
-		List<IDeviceMeasurements> savedMeasurements = new ArrayList<IDeviceMeasurements>();
-		for (IDeviceMeasurements measurements : context.getDeviceMeasurements()) {
-			DeviceMeasurements toCreate = DeviceMeasurements.copy(measurements);
-			savedMeasurements.add(client.createDeviceMeasurements(toCreate));
-		}
-		context.getDeviceMeasurements().clear();
-		context.getDeviceMeasurements().addAll(savedMeasurements);
+		// Send unsaved events in a batch to be saved.
+		DeviceEventBatch batch = new DeviceEventBatch();
+		batch.getMeasurements().addAll(context.getUnsavedDeviceMeasurements());
+		batch.getLocations().addAll(context.getUnsavedDeviceLocations());
+		batch.getAlerts().addAll(context.getUnsavedDeviceAlerts());
+		DeviceEventBatchResponse response = client.addDeviceEventBatch(context.getDevice().getHardwareId(),
+				batch);
 
-		List<IDeviceLocation> savedLocations = new ArrayList<IDeviceLocation>();
-		for (IDeviceLocation location : context.getDeviceLocations()) {
-			DeviceLocation toCreate = DeviceLocation.copy(location);
-			savedLocations.add(client.createDeviceLocation(toCreate));
-		}
-		context.getDeviceLocations().clear();
-		context.getDeviceLocations().addAll(savedLocations);
-
-		List<IDeviceAlert> savedAlerts = new ArrayList<IDeviceAlert>();
-		for (IDeviceAlert alert : context.getDeviceAlerts()) {
-			DeviceAlert toCreate = DeviceAlert.copy(alert);
-			savedAlerts.add(client.createDeviceAlert(toCreate));
-		}
-		context.getDeviceAlerts().clear();
-		context.getDeviceAlerts().addAll(savedAlerts);
+		// Clear out unsaved events and copy saved events from response.
+		context.getUnsavedDeviceMeasurements().clear();
+		context.getUnsavedDeviceLocations().clear();
+		context.getUnsavedDeviceAlerts().clear();
+		context.getDeviceMeasurements().addAll(response.getCreatedMeasurements());
+		context.getDeviceLocations().addAll(response.getCreatedLocations());
+		context.getDeviceAlerts().addAll(response.getCreatedAlerts());
 
 		if (delegateInstance != null) {
 			delegateInstance.afterOperation(context, client, event);
