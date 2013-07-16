@@ -28,7 +28,6 @@ import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.Device;
 import com.sitewhere.rest.model.device.DeviceEventBatch;
 import com.sitewhere.rest.model.device.DeviceEventBatchResponse;
-import com.sitewhere.rest.model.device.DeviceLocation;
 import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.service.SiteWhereClient;
 import com.sitewhere.rest.service.search.DeviceAssignmentSearchResults;
@@ -45,10 +44,9 @@ import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
 import com.sitewhere.spi.mule.delegate.IZoneDelegate;
 
 /**
- * SiteWhere is a cloud-based M2M platform. The Mule cloud connector allows SiteWhere operations to be
- * executed from within a Mule flow.
+ * Allows SiteWhere operations to be executed from within a Mule flow.
  * 
- * @author MuleSoft, Inc.
+ * @author Derek Adams
  */
 @Connector(name = "sitewhere", schemaVersion = "1.0", friendlyName = "SiteWhere")
 public class SiteWhereConnector {
@@ -165,7 +163,7 @@ public class SiteWhereConnector {
 				}
 			}
 			LOGGER.info("Updating device assignment location.");
-			client.updateDeviceAssignmentLocation(token, DeviceLocation.copy(latest));
+			client.updateDeviceAssignmentLocation(token, latest.getId());
 			return context;
 		} else {
 			LOGGER.info("No device locations available to update from.");
