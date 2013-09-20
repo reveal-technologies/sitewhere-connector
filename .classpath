@@ -24,7 +24,6 @@
 	<classpathentry kind="var" path="M2_REPO/asm/asm/3.1/asm-3.1.jar"/>
 	<classpathentry kind="var" path="M2_REPO/asm/asm-commons/3.1/asm-commons-3.1.jar"/>
 	<classpathentry kind="var" path="M2_REPO/asm/asm-tree/3.1/asm-tree-3.1.jar"/>
-	<classpathentry kind="var" path="M2_REPO/org/mvel/mvel2/2.0.19/mvel2-2.0.19.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/jgrapht/jgrapht-jdk1.5/0.7.3/jgrapht-jdk1.5-0.7.3.jar"/>
 	<classpathentry kind="var" path="M2_REPO/junit/junit/4.9/junit-4.9.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/hamcrest/hamcrest-core/1.1/hamcrest-core-1.1.jar"/>
@@ -48,7 +47,6 @@
 	<classpathentry kind="var" path="M2_REPO/org/springframework/spring-core/3.2.1.RELEASE/spring-core-3.2.1.RELEASE.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/mule/mule-core/3.4.0/mule-core-3.4.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-spring-config/3.4.0/mule-module-spring-config-3.4.0.jar"/>
-	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-jersey/3.3.0/mule-module-jersey-3.3.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-annotations/3.4.0/mule-module-annotations-3.4.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
