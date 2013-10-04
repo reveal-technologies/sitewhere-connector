@@ -9,7 +9,12 @@
  */
 package com.sitewhere.mule.connector;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
+
 import org.apache.log4j.Logger;
+import org.mule.util.StringMessageUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.PrettyPrinter;
@@ -46,39 +51,87 @@ public class SiteWhereContextLogger {
 	 * @throws JsonProcessingException
 	 */
 	public void showDebugOutput(ISiteWhereContext context) throws JsonProcessingException {
+		List<String> messages = new ArrayList<String>();
+		messages.add("Information from SiteWhereContext Flow Variable:");
+		messages.add("");
 		if (context.getDevice() != null) {
 			String deviceAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(context.getDevice());
-			LOGGER.info("\n\n*** SITEWHERE DEVICE ***\n" + deviceAsJson);
+			messages.add("Device Information:");
+			messages.add("");
+			messages.addAll(getJsonAsStringList(deviceAsJson));
+		} else {
+			messages.add("Device Information: No device found in context.");
 		}
-		LOGGER.info("\n\n*** UNSAVED DEVICE MEASUREMENTS ***\n");
-		for (IDeviceMeasurementsCreateRequest measurements : context.getUnsavedDeviceMeasurements()) {
-			String measurementsAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(measurements);
-			LOGGER.info(measurementsAsJson + "\n");
+		messages.add("");
+		if (context.getUnsavedDeviceMeasurements().size() > 0) {
+			messages.add("--- Unsaved Device Measurements ---");
+			for (IDeviceMeasurementsCreateRequest measurements : context.getUnsavedDeviceMeasurements()) {
+				String measurementsAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(measurements);
+				messages.addAll(getJsonAsStringList(measurementsAsJson));
+				messages.add("");
+			}
 		}
-		LOGGER.info("\n\n*** UNSAVED DEVICE LOCATIONS ***\n");
-		for (IDeviceLocationCreateRequest location : context.getUnsavedDeviceLocations()) {
-			String locationAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(location);
-			LOGGER.info(locationAsJson + "\n");
+		if (context.getUnsavedDeviceLocations().size() > 0) {
+			messages.add("--- Unsaved Device Locations ---");
+			for (IDeviceLocationCreateRequest location : context.getUnsavedDeviceLocations()) {
+				String locationAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(location);
+				messages.addAll(getJsonAsStringList(locationAsJson));
+				messages.add("");
+			}
 		}
-		LOGGER.info("\n\n*** UNSAVED DEVICE ALERTS ***\n");
-		for (IDeviceAlertCreateRequest alert : context.getUnsavedDeviceAlerts()) {
-			String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
-			LOGGER.info(alertAsJson + "\n");
+		if (context.getUnsavedDeviceAlerts().size() > 0) {
+			messages.add("--- Unsaved Device Alerts ---");
+			for (IDeviceAlertCreateRequest alert : context.getUnsavedDeviceAlerts()) {
+				String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
+				messages.addAll(getJsonAsStringList(alertAsJson));
+				messages.add("");
+			}
 		}
-		LOGGER.info("\n\n*** DEVICE MEASUREMENTS ***\n");
-		for (IDeviceMeasurements measurements : context.getDeviceMeasurements()) {
-			String measurementsAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(measurements);
-			LOGGER.info(measurementsAsJson + "\n");
+		if (context.getDeviceMeasurements().size() > 0) {
+			messages.add("--- Device Measurements ---");
+			for (IDeviceMeasurements measurements : context.getDeviceMeasurements()) {
+				String measurementsAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(measurements);
+				messages.addAll(getJsonAsStringList(measurementsAsJson));
+				messages.add("");
+			}
 		}
-		LOGGER.info("\n\n*** DEVICE LOCATIONS ***\n");
-		for (IDeviceLocation location : context.getDeviceLocations()) {
-			String locationAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(location);
-			LOGGER.info(locationAsJson + "\n");
+		if (context.getDeviceLocations().size() > 0) {
+			messages.add("--- Device Locations ---");
+			for (IDeviceLocation location : context.getDeviceLocations()) {
+				String locationAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(location);
+				messages.addAll(getJsonAsStringList(locationAsJson));
+				messages.add("");
+			}
 		}
-		LOGGER.info("\n\n*** DEVICE ALERTS ***\n");
-		for (IDeviceAlert alert : context.getDeviceAlerts()) {
-			String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
-			LOGGER.info(alertAsJson + "\n");
+		if (context.getDeviceAlerts().size() > 0) {
+			messages.add("--- Device Alerts ---");
+			for (IDeviceAlert alert : context.getDeviceAlerts()) {
+				String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
+				messages.addAll(getJsonAsStringList(alertAsJson));
+				messages.add("");
+			}
 		}
+		if (context.getReplyTo() == null) {
+			messages.add("No 'reply to' information passed by originator.");
+		} else {
+			messages.add("Originator 'reply to' information: " + context.getReplyTo());
+		}
+		String message = StringMessageUtils.getBoilerPlate(messages, '*', 100);
+		LOGGER.info("\n" + message + "\n");
+	}
+
+	/**
+	 * Convert JSON into a list of strings.
+	 * 
+	 * @param json
+	 * @return
+	 */
+	public List<String> getJsonAsStringList(String json) {
+		List<String> results = new ArrayList<String>();
+		StringTokenizer tokenizer = new StringTokenizer(json, "\n");
+		while (tokenizer.hasMoreTokens()) {
+			results.add(tokenizer.nextToken().replaceAll("\\s+$", ""));
+		}
+		return results;
 	}
 }

@@ -68,6 +68,15 @@ public class EmulatorPayloadParserDelegate implements IPayloadParserDelegate {
 	/*
 	 * (non-Javadoc)
 	 * 
+	 * @see com.sitewhere.spi.mule.delegate.IPayloadParserDelegate#getReplyTo()
+	 */
+	public String getReplyTo() throws SiteWhereException {
+		return batch.getReplyTo();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.sitewhere.spi.mule.delegate.IPayloadParserDelegate#getLocations()
 	 */
 	public List<IDeviceLocationCreateRequest> getLocations() throws SiteWhereException {

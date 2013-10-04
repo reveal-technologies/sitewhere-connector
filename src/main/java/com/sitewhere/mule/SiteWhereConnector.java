@@ -362,12 +362,10 @@ public class SiteWhereConnector {
 			}
 			context.setDevice(device);
 			context.setDeviceAssignment(device.getAssignment());
-			if (device.getAssignment() != null) {
-				context.setSite(device.getAssignment().getSite());
-			}
 			context.setUnsavedDeviceLocations(delegateInstance.getLocations());
 			context.setUnsavedDeviceMeasurements(delegateInstance.getMeasurements());
 			context.setUnsavedDeviceAlerts(delegateInstance.getAlerts());
+			context.setReplyTo(delegateInstance.getReplyTo());
 			return context;
 		} else {
 			throw new SiteWhereException("Payload parser delegate required but not specified.");
