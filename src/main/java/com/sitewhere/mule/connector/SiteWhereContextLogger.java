@@ -52,12 +52,11 @@ public class SiteWhereContextLogger {
 	 */
 	public void showDebugOutput(ISiteWhereContext context) throws JsonProcessingException {
 		List<String> messages = new ArrayList<String>();
-		messages.add("Information from SiteWhereContext Flow Variable:");
+		messages.add("Information from SiteWhere context flow variable:");
 		messages.add("");
 		if (context.getDevice() != null) {
 			String deviceAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(context.getDevice());
 			messages.add("Device Information:");
-			messages.add("");
 			messages.addAll(getJsonAsStringList(deviceAsJson));
 		} else {
 			messages.add("Device Information: No device found in context.");
