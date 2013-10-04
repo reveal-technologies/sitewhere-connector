@@ -60,6 +60,9 @@ public class SiteWhereConnector {
 	/** Used to log SiteWhereContext to console */
 	private SiteWhereContextLogger contextLogger = new SiteWhereContextLogger();
 
+	/** Classloader that gets around Mule bugs */
+	private SiteWhereClassloader swClassLoader;
+
 	/**
 	 * SiteWhere API URL.
 	 */
@@ -84,6 +87,7 @@ public class SiteWhereConnector {
 	@Start
 	public void doStart() throws MuleException {
 		client = new SiteWhereClient(getApiUrl());
+		swClassLoader = new SiteWhereClassloader(muleContext);
 		LOGGER.info("SiteWhere connector using base API url: " + getApiUrl());
 	}
 
@@ -409,7 +413,7 @@ public class SiteWhereConnector {
 	@SuppressWarnings("unchecked")
 	protected <T> T createDelegate(String classname, Class<T> classtype) throws SiteWhereException {
 		try {
-			Class<?> resolved = muleContext.getExecutionClassLoader().loadClass(classname);
+			Class<?> resolved = swClassLoader.loadClass(classname);
 			if (!classtype.isAssignableFrom(resolved)) {
 				throw new SiteWhereException("Delgate not an instance of " + classtype.getName());
 			}
