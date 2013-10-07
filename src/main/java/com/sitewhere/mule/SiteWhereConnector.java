@@ -320,15 +320,16 @@ public class SiteWhereConnector {
 	 */
 	@Inject
 	@Processor
-	public ISiteWhereContext sitewhereDelegate(@FriendlyName("SiteWhere Delegate") String delegate,
-			MuleEvent event) throws SiteWhereException {
+	public Object sitewhereDelegate(@FriendlyName("SiteWhere Delegate") String delegate, MuleEvent event)
+			throws SiteWhereException {
 		ISiteWhereContext context = getSiteWhereContext(event);
 		ISiteWhereDelegate delegateInstance = null;
+		Object response = context;
 		if (delegate != null) {
 			delegateInstance = createDelegate(delegate, ISiteWhereDelegate.class);
-			delegateInstance.process(context, client, event);
+			response = delegateInstance.process(context, client, event);
 		}
-		return context;
+		return response;
 	}
 
 	/**
