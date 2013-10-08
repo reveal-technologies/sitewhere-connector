@@ -25,3 +25,12 @@
 <!-- BEGIN_INCLUDE(sitewhere:emulator) -->
     <sitewhere:emulator/>
 <!-- END_INCLUDE(sitewhere:emulator) -->
+<!-- BEGIN_INCLUDE(sitewhere:extract-alerts) -->
+    <sitewhere:extract-alerts/>
+<!-- END_INCLUDE(sitewhere:extract-alerts) -->
+<!-- BEGIN_INCLUDE(sitewhere:extract-locations) -->
+    <sitewhere:extract-locations/>
+<!-- END_INCLUDE(sitewhere:extract-locations) -->
+<!-- BEGIN_INCLUDE(sitewhere:extract-measurements) -->
+    <sitewhere:extract-measurements/>
+<!-- END_INCLUDE(sitewhere:extract-measurements) -->

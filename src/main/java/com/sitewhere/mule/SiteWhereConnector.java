@@ -37,6 +37,7 @@ import com.sitewhere.spi.SiteWhereException;
 import com.sitewhere.spi.common.ILocation;
 import com.sitewhere.spi.device.IDeviceAlert;
 import com.sitewhere.spi.device.IDeviceLocation;
+import com.sitewhere.spi.device.IDeviceMeasurements;
 import com.sitewhere.spi.mule.IMuleProperties;
 import com.sitewhere.spi.mule.delegate.IOperationLifecycleDelegate;
 import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
@@ -379,7 +380,7 @@ public class SiteWhereConnector {
 
 	/**
 	 * Creates a SiteWhere context from the event payload with the assumption that the payload is a JSON
-	 * string repesenting a {@link EmulatorDevice} object.
+	 * string repesenting a {@link DeviceEventBatch} object.
 	 * 
 	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:emulator}
 	 * 
@@ -393,6 +394,60 @@ public class SiteWhereConnector {
 	@Processor
 	public ISiteWhereContext emulator(MuleEvent event) throws SiteWhereException {
 		return payloadToSitewhereContext(EmulatorPayloadParserDelegate.class.getName(), event);
+	}
+
+	/**
+	 * Extracts all alerts from the current SiteWhere context and makes them the payload.
+	 * 
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:extract-alerts}
+	 * 
+	 * @param event
+	 *            current Mule event
+	 * @return list of alerts extracted from the current context
+	 * @throws SiteWhereException
+	 *             if there is an error creating the context
+	 */
+	@Inject
+	@Processor
+	public List<IDeviceAlert> extractAlerts(MuleEvent event) throws SiteWhereException {
+		ISiteWhereContext context = getSiteWhereContext(event);
+		return context.getDeviceAlerts();
+	}
+
+	/**
+	 * Extracts all locations from the current SiteWhere context and makes them the payload.
+	 * 
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:extract-locations}
+	 * 
+	 * @param event
+	 *            current Mule event
+	 * @return list of locations extracted from the current context
+	 * @throws SiteWhereException
+	 *             if there is an error creating the context
+	 */
+	@Inject
+	@Processor
+	public List<IDeviceLocation> extractLocations(MuleEvent event) throws SiteWhereException {
+		ISiteWhereContext context = getSiteWhereContext(event);
+		return context.getDeviceLocations();
+	}
+
+	/**
+	 * Extracts all measurements from the current SiteWhere context and makes them the payload.
+	 * 
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:extract-measurements}
+	 * 
+	 * @param event
+	 *            current Mule event
+	 * @return list of measurements extracted from the current context
+	 * @throws SiteWhereException
+	 *             if there is an error creating the context
+	 */
+	@Inject
+	@Processor
+	public List<IDeviceMeasurements> extractMeasurements(MuleEvent event) throws SiteWhereException {
+		ISiteWhereContext context = getSiteWhereContext(event);
+		return context.getDeviceMeasurements();
 	}
 
 	/**
