@@ -28,6 +28,7 @@ import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.Device;
 import com.sitewhere.rest.model.device.DeviceEventBatch;
 import com.sitewhere.rest.model.device.DeviceEventBatchResponse;
+import com.sitewhere.rest.model.device.DeviceLocation;
 import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.service.SiteWhereClient;
 import com.sitewhere.rest.service.search.DeviceAssignmentSearchResults;
@@ -123,7 +124,8 @@ public class SiteWhereConnector {
 	/**
 	 * Locates a device by its unique hardware id.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:find-device-by-hardware-id}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:find-device-by-hardware-id}
 	 * 
 	 * @param hardwareId
 	 *            unique hardware id of device to find
@@ -139,9 +141,11 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Update the current device assignment location with the latest location information in the request.
+	 * Update the current device assignment location with the latest location information
+	 * in the request.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:update-assignment-location}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:update-assignment-location}
 	 * 
 	 * @param token
 	 *            token to update or blank for current device assignment
@@ -168,7 +172,7 @@ public class SiteWhereConnector {
 				}
 			}
 			LOGGER.info("Updating device assignment location.");
-			client.updateDeviceAssignmentLocation(token, latest.getId());
+			client.updateDeviceAssignmentLocation(token, DeviceLocation.copy(latest));
 			return context;
 		} else {
 			LOGGER.info("No device locations available to update from.");
@@ -179,7 +183,8 @@ public class SiteWhereConnector {
 	/**
 	 * Save the device measurements currently in the SiteWhereContext.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:save-device-events}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:save-device-events}
 	 * 
 	 * @param delegate
 	 *            executes custom logic before or after operation is processed
@@ -225,7 +230,8 @@ public class SiteWhereConnector {
 	/**
 	 * Get the history of device assignments for a given hardware id.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:get-device-assignment-history}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:get-device-assignment-history}
 	 * 
 	 * @param hardwareId
 	 *            hardware id or blank to use id from device in SiteWhere context
@@ -264,7 +270,8 @@ public class SiteWhereConnector {
 	/**
 	 * Check whether locations are within zones specified for the site.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:perform-zone-checks}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:perform-zone-checks}
 	 * 
 	 * @param delegate
 	 *            delegate that generates alerts based on zones.
@@ -309,7 +316,8 @@ public class SiteWhereConnector {
 	/**
 	 * Executes a delegate class that has access to SiteWhere and Mule internals.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:sitewhere-delegate}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:sitewhere-delegate}
 	 * 
 	 * @param delegate
 	 *            delegate class to invoke
@@ -336,7 +344,8 @@ public class SiteWhereConnector {
 	/**
 	 * Populates a new SiteWhere context from information in the current Mule event.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:payload-to-sitewhere-context}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:payload-to-sitewhere-context}
 	 * 
 	 * @param delegate
 	 *            delegate implementing <code>IPayloadParserDelegate</code>
@@ -379,8 +388,8 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Creates a SiteWhere context from the event payload with the assumption that the payload is a JSON
-	 * string repesenting a {@link DeviceEventBatch} object.
+	 * Creates a SiteWhere context from the event payload with the assumption that the
+	 * payload is a JSON string repesenting a {@link DeviceEventBatch} object.
 	 * 
 	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:emulator}
 	 * 
@@ -415,9 +424,11 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Extracts all locations from the current SiteWhere context and makes them the payload.
+	 * Extracts all locations from the current SiteWhere context and makes them the
+	 * payload.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:extract-locations}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:extract-locations}
 	 * 
 	 * @param event
 	 *            current Mule event
@@ -433,9 +444,11 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Extracts all measurements from the current SiteWhere context and makes them the payload.
+	 * Extracts all measurements from the current SiteWhere context and makes them the
+	 * payload.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:extract-measurements}
+	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * sitewhere:extract-measurements}
 	 * 
 	 * @param event
 	 *            current Mule event
