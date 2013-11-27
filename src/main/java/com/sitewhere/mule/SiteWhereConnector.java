@@ -25,11 +25,12 @@ import org.mule.api.annotations.param.Optional;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
+import com.sitewhere.rest.model.common.MetadataProvider;
 import com.sitewhere.rest.model.device.Device;
 import com.sitewhere.rest.model.device.DeviceEventBatch;
 import com.sitewhere.rest.model.device.DeviceEventBatchResponse;
-import com.sitewhere.rest.model.device.DeviceLocation;
 import com.sitewhere.rest.model.device.Zone;
+import com.sitewhere.rest.model.device.request.DeviceLocationCreateRequest;
 import com.sitewhere.rest.service.SiteWhereClient;
 import com.sitewhere.rest.service.search.DeviceAssignmentSearchResults;
 import com.sitewhere.rest.service.search.ZoneSearchResults;
@@ -87,8 +88,9 @@ public class SiteWhereConnector {
 	private MuleContext muleContext;
 
 	@Start
+	// TODO: Allow username and password to be entered...
 	public void doStart() throws MuleException {
-		client = new SiteWhereClient(getApiUrl());
+		client = new SiteWhereClient(getApiUrl(), "admin", "password");
 		swClassLoader = new SiteWhereClassloader(muleContext);
 		LOGGER.info("SiteWhere connector using base API url: " + getApiUrl());
 	}
@@ -164,6 +166,7 @@ public class SiteWhereConnector {
 		if ((token == null) || (token.trim().length() == 0)) {
 			token = context.getDeviceAssignment().getToken();
 		}
+		// Find latest device location and save it as current location.
 		if (context.getDeviceLocations().size() > 0) {
 			IDeviceLocation latest = null;
 			for (IDeviceLocation location : context.getDeviceLocations()) {
@@ -172,7 +175,13 @@ public class SiteWhereConnector {
 				}
 			}
 			LOGGER.info("Updating device assignment location.");
-			client.updateDeviceAssignmentLocation(token, DeviceLocation.copy(latest));
+			DeviceLocationCreateRequest newLocation = new DeviceLocationCreateRequest();
+			newLocation.setEventDate(latest.getEventDate());
+			newLocation.setLatitude(latest.getLatitude());
+			newLocation.setLongitude(latest.getLongitude());
+			newLocation.setElevation(latest.getElevation());
+			MetadataProvider.copy(latest, newLocation);
+			client.updateDeviceAssignmentLocation(token, newLocation);
 			return context;
 		} else {
 			LOGGER.info("No device locations available to update from.");
@@ -210,8 +219,8 @@ public class SiteWhereConnector {
 		batch.getMeasurements().addAll(context.getUnsavedDeviceMeasurements());
 		batch.getLocations().addAll(context.getUnsavedDeviceLocations());
 		batch.getAlerts().addAll(context.getUnsavedDeviceAlerts());
-		DeviceEventBatchResponse response = client.addDeviceEventBatch(context.getDevice().getHardwareId(),
-				batch);
+		DeviceEventBatchResponse response =
+				client.addDeviceEventBatch(context.getDevice().getHardwareId(), batch);
 
 		// Clear out unsaved events and copy saved events from response.
 		context.getUnsavedDeviceMeasurements().clear();
@@ -258,8 +267,8 @@ public class SiteWhereConnector {
 		if (hardwareId == null) {
 			hardwareId = context.getDevice().getHardwareId();
 		}
-		DeviceAssignmentSearchResults history = client.listDeviceAssignmentHistory(context.getDevice()
-				.getHardwareId());
+		DeviceAssignmentSearchResults history =
+				client.listDeviceAssignmentHistory(context.getDevice().getHardwareId());
 		event.getMessage().setPayload(history);
 		if (delegateInstance != null) {
 			delegateInstance.afterOperation(context, client, event);
@@ -471,8 +480,8 @@ public class SiteWhereConnector {
 	 * @throws SiteWhereException
 	 */
 	protected ISiteWhereContext getSiteWhereContext(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = (ISiteWhereContext) event
-				.getFlowVariable(IMuleProperties.SITEWHERE_CONTEXT);
+		ISiteWhereContext context =
+				(ISiteWhereContext) event.getFlowVariable(IMuleProperties.SITEWHERE_CONTEXT);
 		if (context == null) {
 			throw new SiteWhereException("SiteWhereContext not found in expected flow variable.");
 		}
