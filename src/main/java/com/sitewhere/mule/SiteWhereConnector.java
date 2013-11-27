@@ -3,8 +3,6 @@
  */
 package com.sitewhere.mule;
 
-import java.awt.Point;
-import java.awt.Polygon;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +20,7 @@ import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.annotations.param.Optional;
 
+import com.sitewhere.geo.GeoUtils;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
@@ -33,18 +32,19 @@ import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.model.device.request.DeviceLocationCreateRequest;
 import com.sitewhere.rest.service.SiteWhereClient;
 import com.sitewhere.rest.service.search.DeviceAssignmentSearchResults;
-import com.sitewhere.rest.service.search.ZoneSearchResults;
+import com.sitewhere.rest.service.search.SearchResults;
 import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.SiteWhereException;
-import com.sitewhere.spi.common.ILocation;
 import com.sitewhere.spi.device.IDeviceAlert;
 import com.sitewhere.spi.device.IDeviceLocation;
 import com.sitewhere.spi.device.IDeviceMeasurements;
+import com.sitewhere.spi.device.request.IDeviceAlertCreateRequest;
 import com.sitewhere.spi.mule.IMuleProperties;
 import com.sitewhere.spi.mule.delegate.IOperationLifecycleDelegate;
 import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
 import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
-import com.sitewhere.spi.mule.delegate.IZoneDelegate;
+import com.sitewhere.spi.mule.delegate.IZoneProcessingDelegate;
+import com.vividsolutions.jts.geom.Polygon;
 
 /**
  * Allows SiteWhere operations to be executed from within a Mule flow.
@@ -286,33 +286,27 @@ public class SiteWhereConnector {
 	 *            delegate that generates alerts based on zones.
 	 * @param event
 	 *            mule event
-	 * @return a list of alerts generated from the zone checks.
+	 * @return a list of alerts create requests generated from the zone checks.
 	 * @throws SiteWhereException
 	 *             if processing fails
 	 */
 	@Inject
 	@Processor
-	public List<IDeviceAlert> performZoneChecks(@FriendlyName("Zone Delegate") String delegate,
+	public List<IDeviceAlertCreateRequest> performZoneChecks(@FriendlyName("Zone Delegate") String delegate,
 			MuleEvent event) throws SiteWhereException {
 		ISiteWhereContext context = getSiteWhereContext(event);
-		IZoneDelegate delegateInstance = null;
-		List<IDeviceAlert> results = new ArrayList<IDeviceAlert>();
+		IZoneProcessingDelegate delegateInstance = null;
+		List<IDeviceAlertCreateRequest> results = new ArrayList<IDeviceAlertCreateRequest>();
 		if (delegate != null) {
-			delegateInstance = createDelegate(delegate, IZoneDelegate.class);
-			ZoneSearchResults zones = client.listZonesForSite(context.getDeviceAssignment().getSiteToken());
-			System.out.println("Zone processor found " + zones.getNumResults() + " zones.");
+			delegateInstance = createDelegate(delegate, IZoneProcessingDelegate.class);
+			SearchResults<Zone> zones = client.listZonesForSite(context.getDeviceAssignment().getSiteToken());
+			LOGGER.info("Performing zone checks for " + zones.getNumResults() + " zones.");
 			for (Zone zone : zones.getResults()) {
-				Polygon poly = new Polygon();
-				for (ILocation location : zone.getCoordinates()) {
-					int lat = (int) (location.getLatitude() * 100000);
-					int lon = (int) (location.getLongitude() * 100000);
-					poly.addPoint(lon, lat);
-				}
+				Polygon zonePoly = GeoUtils.createPolygonForZone(zone);
 				for (IDeviceLocation location : context.getDeviceLocations()) {
-					int lat = (int) (location.getLatitude() * 100000);
-					int lon = (int) (location.getLongitude() * 100000);
-					boolean inside = poly.contains(new Point(lon, lat));
-					IDeviceAlert alert = delegateInstance.handleZoneResults(context, zone, location, inside);
+					boolean inside = zonePoly.contains(GeoUtils.createPointForLocation(location));
+					IDeviceAlertCreateRequest alert =
+							delegateInstance.handleZoneResults(context, zone, location, inside);
 					if (alert != null) {
 						results.add(alert);
 					}
