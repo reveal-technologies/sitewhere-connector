@@ -20,7 +20,7 @@ import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.annotations.param.Optional;
 
-import com.sitewhere.geo.GeoUtils;
+import com.sitewhere.geo.zone.ZoneMatcher;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
@@ -44,7 +44,6 @@ import com.sitewhere.spi.mule.delegate.IOperationLifecycleDelegate;
 import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
 import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
 import com.sitewhere.spi.mule.delegate.IZoneProcessingDelegate;
-import com.vividsolutions.jts.geom.Polygon;
 
 /**
  * Allows SiteWhere operations to be executed from within a Mule flow.
@@ -301,15 +300,11 @@ public class SiteWhereConnector {
 			delegateInstance = createDelegate(delegate, IZoneProcessingDelegate.class);
 			SearchResults<Zone> zones = client.listZonesForSite(context.getDeviceAssignment().getSiteToken());
 			LOGGER.info("Performing zone checks for " + zones.getNumResults() + " zones.");
-			for (Zone zone : zones.getResults()) {
-				Polygon zonePoly = GeoUtils.createPolygonForZone(zone);
-				for (IDeviceLocation location : context.getDeviceLocations()) {
-					boolean inside = zonePoly.contains(GeoUtils.createPointForLocation(location));
-					IDeviceAlertCreateRequest alert =
-							delegateInstance.handleZoneResults(context, zone, location, inside);
-					if (alert != null) {
-						results.add(alert);
-					}
+			for (IDeviceLocation location : context.getDeviceLocations()) {
+				ZoneMatcher matcher = new ZoneMatcher(location, zones.getResults());
+				List<IDeviceAlertCreateRequest> alerts = delegateInstance.handleZoneResults(context, matcher);
+				if (alerts != null) {
+					results.addAll(alerts);
 				}
 			}
 		}
