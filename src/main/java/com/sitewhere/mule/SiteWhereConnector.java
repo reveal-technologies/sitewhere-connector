@@ -24,12 +24,10 @@ import com.sitewhere.geo.zone.ZoneMatcher;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
-import com.sitewhere.rest.model.common.MetadataProvider;
 import com.sitewhere.rest.model.device.Device;
 import com.sitewhere.rest.model.device.DeviceEventBatch;
 import com.sitewhere.rest.model.device.DeviceEventBatchResponse;
 import com.sitewhere.rest.model.device.Zone;
-import com.sitewhere.rest.model.device.request.DeviceLocationCreateRequest;
 import com.sitewhere.rest.model.search.DeviceAssignmentSearchResults;
 import com.sitewhere.rest.model.search.SearchResults;
 import com.sitewhere.rest.service.SiteWhereClient;
@@ -142,76 +140,25 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Update the current device assignment location with the latest location information
-	 * in the request.
-	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
-	 * sitewhere:update-assignment-location}
-	 * 
-	 * @param token
-	 *            token to update or blank for current device assignment
-	 * @param event
-	 *            current Mule event
-	 * @return the updated device assignment
-	 * @throws SiteWhereException
-	 *             if there is an error during update
-	 */
-	@Inject
-	@Processor
-	public ISiteWhereContext updateAssignmentLocation(
-			@FriendlyName("Assignment Token") @Optional String token, MuleEvent event)
-			throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		if ((token == null) || (token.trim().length() == 0)) {
-			token = context.getDeviceAssignment().getToken();
-		}
-		// Find latest device location and save it as current location.
-		if (context.getDeviceLocations().size() > 0) {
-			IDeviceLocation latest = null;
-			for (IDeviceLocation location : context.getDeviceLocations()) {
-				if ((latest == null) || (location.getEventDate().after(latest.getEventDate()))) {
-					latest = location;
-				}
-			}
-			LOGGER.info("Updating device assignment location.");
-			DeviceLocationCreateRequest newLocation = new DeviceLocationCreateRequest();
-			newLocation.setEventDate(latest.getEventDate());
-			newLocation.setLatitude(latest.getLatitude());
-			newLocation.setLongitude(latest.getLongitude());
-			newLocation.setElevation(latest.getElevation());
-			MetadataProvider.copy(latest, newLocation);
-			client.updateDeviceAssignmentLocation(token, newLocation);
-			return context;
-		} else {
-			LOGGER.info("No device locations available to update from.");
-			return null;
-		}
-	}
-
-	/**
 	 * Save the device measurements currently in the SiteWhereContext.
 	 * 
 	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
 	 * sitewhere:save-device-events}
 	 * 
-	 * @param delegate
-	 *            executes custom logic before or after operation is processed
+	 * 
+	 * @param saveState
+	 *            indicates whether state information should be updated
 	 * @param event
-	 *            mule event
-	 * @return SiteWhere context
+	 *            current Mule event
+	 * @return the updated SiteWhere context
 	 * @throws SiteWhereException
-	 *             if save fails
+	 *             if events or state can not be saved
 	 */
 	@Inject
 	@Processor
-	public ISiteWhereContext saveDeviceEvents(@FriendlyName("Lifecycle Delegate") @Optional String delegate,
+	public ISiteWhereContext saveDeviceEvents(@FriendlyName("Save state") @Optional Boolean saveState,
 			MuleEvent event) throws SiteWhereException {
 		ISiteWhereContext context = getSiteWhereContext(event);
-		IOperationLifecycleDelegate delegateInstance = null;
-		if (delegate != null) {
-			delegateInstance = createDelegate(delegate, IOperationLifecycleDelegate.class);
-			delegateInstance.beforeOperation(context, client, event);
-		}
 
 		// Send unsaved events in a batch to be saved.
 		DeviceEventBatch batch = new DeviceEventBatch();
@@ -221,6 +168,11 @@ public class SiteWhereConnector {
 		DeviceEventBatchResponse response =
 				client.addDeviceEventBatch(context.getDevice().getHardwareId(), batch);
 
+		// Save state to assignment if requested.
+		if (saveState) {
+			client.updateDeviceAssignmentState(context.getDeviceAssignment().getToken(), batch);
+		}
+
 		// Clear out unsaved events and copy saved events from response.
 		context.getUnsavedDeviceMeasurements().clear();
 		context.getUnsavedDeviceLocations().clear();
@@ -229,9 +181,6 @@ public class SiteWhereConnector {
 		context.getDeviceLocations().addAll(response.getCreatedLocations());
 		context.getDeviceAlerts().addAll(response.getCreatedAlerts());
 
-		if (delegateInstance != null) {
-			delegateInstance.afterOperation(context, client, event);
-		}
 		return context;
 	}
 
