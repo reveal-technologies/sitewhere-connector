@@ -11,10 +11,10 @@
 	<properties>
 		<sitewhere.version>0.9.4</sitewhere.version>
 		<mule.version>3.4.0</mule.version>
-		<mule.devkit.version>3.4.0</mule.devkit.version>
+		<mule.devkit.version>3.4.2</mule.devkit.version>
 		<junit.version>4.9</junit.version>
 		<mockito.version>1.8.2</mockito.version>
-		<jdk.version>1.6</jdk.version>
+		<jdk.version>1.7</jdk.version>
 		<devkit.studio.package.skip>false</devkit.studio.package.skip>
 	</properties>
 
@@ -222,12 +222,12 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>sitewhere</groupId>
+			<groupId>com.sitewhere</groupId>
 			<artifactId>sitewhere-client</artifactId>
 			<version>${sitewhere.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>sitewhere</groupId>
+			<groupId>com.sitewhere</groupId>
 			<artifactId>sitewhere-mule</artifactId>
 			<version>${sitewhere.version}</version>
 		</dependency>
