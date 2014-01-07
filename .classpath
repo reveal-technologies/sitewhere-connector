@@ -34,7 +34,6 @@
 	<classpathentry kind="var" path="M2_REPO/org/eclipse/eclipse-runtime/3.6.0.v20100505/eclipse-runtime-3.6.0.v20100505.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/eclipse/eclipse-workbench/3.6.1.M20100826-1330/eclipse-workbench-3.6.1.M20100826-1330.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/osgi/core/4.3.0/core-4.3.0.jar"/>
-	<classpathentry kind="src" path="/sitewhere-client"/>
 	<classpathentry kind="var" path="M2_REPO/aopalliance/aopalliance/1.0/aopalliance-1.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/eclipse/equinox/org.eclipse.equinox.common/3.6.0.v20100503/org.eclipse.equinox.common-3.6.0.v20100503.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/fasterxml/jackson/core/jackson-annotations/2.0.4/jackson-annotations-2.0.4.jar"/>
@@ -49,6 +48,6 @@
 	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-spring-config/3.4.0/mule-module-spring-config-3.4.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-annotations/3.4.0/mule-module-annotations-3.4.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/vividsolutions/jts/1.13/jts-1.13.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/sitewhere-mule"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/sitewhere"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
