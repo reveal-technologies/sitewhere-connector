@@ -21,12 +21,12 @@ import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sitewhere.spi.ISiteWhereContext;
-import com.sitewhere.spi.device.IDeviceAlert;
-import com.sitewhere.spi.device.IDeviceLocation;
-import com.sitewhere.spi.device.IDeviceMeasurements;
-import com.sitewhere.spi.device.request.IDeviceAlertCreateRequest;
-import com.sitewhere.spi.device.request.IDeviceLocationCreateRequest;
-import com.sitewhere.spi.device.request.IDeviceMeasurementsCreateRequest;
+import com.sitewhere.spi.device.event.IDeviceAlert;
+import com.sitewhere.spi.device.event.IDeviceLocation;
+import com.sitewhere.spi.device.event.IDeviceMeasurements;
+import com.sitewhere.spi.device.event.request.IDeviceAlertCreateRequest;
+import com.sitewhere.spi.device.event.request.IDeviceLocationCreateRequest;
+import com.sitewhere.spi.device.event.request.IDeviceMeasurementsCreateRequest;
 
 /**
  * Used to send SiteWhere context information to the console.
@@ -54,10 +54,11 @@ public class SiteWhereContextLogger {
 		List<String> messages = new ArrayList<String>();
 		messages.add("Information from SiteWhere context flow variable:");
 		messages.add("");
-		if (context.getDevice() != null) {
-			String deviceAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(context.getDevice());
-			messages.add("Device Information:");
-			messages.addAll(getJsonAsStringList(deviceAsJson));
+		if (context.getDeviceAssignment() != null) {
+			String assignmentAsJson =
+					jsonMapper.writer(jsonPrinter).writeValueAsString(context.getDeviceAssignment());
+			messages.add("Device Assignment Information:");
+			messages.addAll(getJsonAsStringList(assignmentAsJson));
 		} else {
 			messages.add("Device Information: No device found in context.");
 		}

@@ -49,5 +49,8 @@
 	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-annotations/3.4.0/mule-module-annotations-3.4.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/vividsolutions/jts/1.13/jts-1.13.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/sitewhere"/>
+	<classpathentry kind="var" path="M2_REPO/com/hazelcast/hazelcast/3.0.2/hazelcast-3.0.2.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/hazelcast/hazelcast-client/3.0.2/hazelcast-client-3.0.2.jar" sourcepath="/HAZELCAST_HOME/hazelcast-client/src/main/java"/>
+	<classpathentry kind="var" path="M2_REPO/org/mule/modules/mule-module-devkit-support/3.4.0/mule-module-devkit-support-3.4.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

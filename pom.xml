@@ -12,6 +12,7 @@
 		<sitewhere.version>0.9.4</sitewhere.version>
 		<mule.version>3.4.0</mule.version>
 		<mule.devkit.version>3.4.2</mule.devkit.version>
+		<hazelcast.version>3.0.2</hazelcast.version>
 		<junit.version>4.9</junit.version>
 		<mockito.version>1.8.2</mockito.version>
 		<jdk.version>1.7</jdk.version>
@@ -230,6 +231,16 @@
 			<groupId>com.sitewhere</groupId>
 			<artifactId>sitewhere-mule</artifactId>
 			<version>${sitewhere.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.hazelcast</groupId>
+			<artifactId>hazelcast</artifactId>
+			<version>${hazelcast.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.hazelcast</groupId>
+			<artifactId>hazelcast-client</artifactId>
+			<version>${hazelcast.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>

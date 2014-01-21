@@ -9,42 +9,55 @@ import java.util.List;
 import javax.inject.Inject;
 
 import org.apache.log4j.Logger;
+import org.mule.api.DefaultMuleException;
 import org.mule.api.MuleContext;
 import org.mule.api.MuleEvent;
 import org.mule.api.MuleException;
 import org.mule.api.annotations.Configurable;
 import org.mule.api.annotations.Connector;
 import org.mule.api.annotations.Processor;
+import org.mule.api.annotations.Source;
 import org.mule.api.annotations.display.FriendlyName;
 import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.annotations.param.Optional;
+import org.mule.api.callback.SourceCallback;
 
+import com.hazelcast.client.HazelcastClient;
+import com.hazelcast.client.config.ClientConfig;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.ITopic;
+import com.hazelcast.core.Message;
+import com.hazelcast.core.MessageListener;
 import com.sitewhere.geo.zone.ZoneMatcher;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.Device;
-import com.sitewhere.rest.model.device.DeviceEventBatch;
-import com.sitewhere.rest.model.device.DeviceEventBatchResponse;
+import com.sitewhere.rest.model.device.DeviceAssignment;
 import com.sitewhere.rest.model.device.Zone;
+import com.sitewhere.rest.model.device.event.DeviceAlert;
+import com.sitewhere.rest.model.device.event.DeviceEventBatch;
+import com.sitewhere.rest.model.device.event.DeviceEventBatchResponse;
+import com.sitewhere.rest.model.device.event.DeviceLocation;
+import com.sitewhere.rest.model.device.event.DeviceMeasurements;
 import com.sitewhere.rest.model.search.DeviceAssignmentSearchResults;
 import com.sitewhere.rest.model.search.SearchResults;
 import com.sitewhere.rest.service.SiteWhereClient;
 import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.SiteWhereException;
-import com.sitewhere.spi.device.IDeviceAlert;
-import com.sitewhere.spi.device.IDeviceLocation;
-import com.sitewhere.spi.device.IDeviceMeasurements;
-import com.sitewhere.spi.device.request.IDeviceAlertCreateRequest;
+import com.sitewhere.spi.device.event.IDeviceEvent;
+import com.sitewhere.spi.device.event.IDeviceLocation;
+import com.sitewhere.spi.device.event.request.IDeviceAlertCreateRequest;
 import com.sitewhere.spi.mule.IMuleProperties;
 import com.sitewhere.spi.mule.delegate.IOperationLifecycleDelegate;
 import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
 import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
 import com.sitewhere.spi.mule.delegate.IZoneProcessingDelegate;
+import com.sitewhere.spi.server.hazelcast.ISiteWhereHazelcast;
 
 /**
- * Allows SiteWhere operations to be executed from within a Mule flow.
+ * Allows SiteWhere REST operations to be executed from within a Mule flow.
  * 
  * @author Derek Adams
  */
@@ -63,6 +76,12 @@ public class SiteWhereConnector {
 	/** Classloader that gets around Mule bugs */
 	private SiteWhereClassloader swClassLoader;
 
+	/** Hazelcast client for SiteWhere */
+	private HazelcastInstance hazelcast;
+
+	/** Indicates whether connected to Hazelcast */
+	private boolean connected = false;
+
 	/**
 	 * SiteWhere API URL.
 	 */
@@ -71,6 +90,33 @@ public class SiteWhereConnector {
 	@Default("http://localhost:8080/sitewhere/api/")
 	@FriendlyName("SiteWhere API URL")
 	private String apiUrl;
+
+	/**
+	 * SiteWhere Hazelcast username.
+	 */
+	@Optional
+	@Configurable
+	@Default("sitewhere")
+	@FriendlyName("SiteWhere Hazelcast Username")
+	private String hazelcastUsername;
+
+	/**
+	 * SiteWhere Hazelcast password.
+	 */
+	@Optional
+	@Configurable
+	@Default("sitewhere")
+	@FriendlyName("SiteWhere Hazelcast Password")
+	private String hazelcastPassword;
+
+	/**
+	 * SiteWhere Hazelcast address.
+	 */
+	@Optional
+	@Configurable
+	@Default("localhost:5701")
+	@FriendlyName("SiteWhere Hazelcast Address")
+	private String hazelcastAddress;
 
 	/**
 	 * Show extra debug information for SiteWhere components.
@@ -89,13 +135,38 @@ public class SiteWhereConnector {
 	public void doStart() throws MuleException {
 		client = new SiteWhereClient(getApiUrl(), "admin", "password");
 		swClassLoader = new SiteWhereClassloader(muleContext);
-		LOGGER.info("SiteWhere connector using base API url: " + getApiUrl());
+		LOGGER.info("SiteWhere connector using base REST url: " + getApiUrl());
+		if (!isConnected()) {
+			connect();
+		}
+	}
+
+	/**
+	 * Connect to Hazelcast.
+	 * 
+	 * @throws MuleException
+	 */
+	protected void connect() throws MuleException {
+		ClientConfig clientConfig = new ClientConfig();
+		clientConfig.getGroupConfig().setName(getHazelcastUsername());
+		clientConfig.getGroupConfig().setPassword(getHazelcastPassword());
+		clientConfig.addAddress(getHazelcastAddress());
+		clientConfig.setSmartRouting(true);
+
+		try {
+			this.hazelcast = HazelcastClient.newHazelcastClient(clientConfig);
+			this.connected = true;
+			LOGGER.info("Connected to SiteWhere Hazelcast cluster.");
+		} catch (Exception e) {
+			this.connected = false;
+			throw new DefaultMuleException("Unable to connect to SiteWhere Hazelcast cluster.", e);
+		}
 	}
 
 	/**
 	 * Logs information about the current SiteWhere context to the console.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:context-logger}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:context-logger}
 	 * 
 	 * @param event
 	 *            injected Mule event
@@ -123,7 +194,7 @@ public class SiteWhereConnector {
 	/**
 	 * Locates a device by its unique hardware id.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml
 	 * sitewhere:find-device-by-hardware-id}
 	 * 
 	 * @param hardwareId
@@ -142,8 +213,7 @@ public class SiteWhereConnector {
 	/**
 	 * Save the device measurements currently in the SiteWhereContext.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
-	 * sitewhere:save-device-events}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:save-device-events}
 	 * 
 	 * 
 	 * @param saveState
@@ -166,7 +236,7 @@ public class SiteWhereConnector {
 		batch.getLocations().addAll(context.getUnsavedDeviceLocations());
 		batch.getAlerts().addAll(context.getUnsavedDeviceAlerts());
 		DeviceEventBatchResponse response =
-				client.addDeviceEventBatch(context.getDevice().getHardwareId(), batch);
+				client.addDeviceEventBatch(context.getDeviceAssignment().getDeviceHardwareId(), batch);
 
 		// Save state to assignment if requested.
 		if (saveState) {
@@ -187,7 +257,7 @@ public class SiteWhereConnector {
 	/**
 	 * Get the history of device assignments for a given hardware id.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml
 	 * sitewhere:get-device-assignment-history}
 	 * 
 	 * @param hardwareId
@@ -213,10 +283,10 @@ public class SiteWhereConnector {
 			delegateInstance.beforeOperation(context, client, event);
 		}
 		if (hardwareId == null) {
-			hardwareId = context.getDevice().getHardwareId();
+			hardwareId = context.getDeviceAssignment().getDeviceHardwareId();
 		}
 		DeviceAssignmentSearchResults history =
-				client.listDeviceAssignmentHistory(context.getDevice().getHardwareId());
+				client.listDeviceAssignmentHistory(context.getDeviceAssignment().getDeviceHardwareId());
 		event.getMessage().setPayload(history);
 		if (delegateInstance != null) {
 			delegateInstance.afterOperation(context, client, event);
@@ -227,8 +297,7 @@ public class SiteWhereConnector {
 	/**
 	 * Check whether locations are within zones specified for the site.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
-	 * sitewhere:perform-zone-checks}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:perform-zone-checks}
 	 * 
 	 * @param delegate
 	 *            delegate that generates alerts based on zones.
@@ -263,8 +332,7 @@ public class SiteWhereConnector {
 	/**
 	 * Executes a delegate class that has access to SiteWhere and Mule internals.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
-	 * sitewhere:sitewhere-delegate}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:sitewhere-delegate}
 	 * 
 	 * @param delegate
 	 *            delegate class to invoke
@@ -291,7 +359,7 @@ public class SiteWhereConnector {
 	/**
 	 * Populates a new SiteWhere context from information in the current Mule event.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml
 	 * sitewhere:payload-to-sitewhere-context}
 	 * 
 	 * @param delegate
@@ -318,12 +386,9 @@ public class SiteWhereConnector {
 			if (hardwareId == null) {
 				throw new SiteWhereException("Payload parser delegate returned null for hardware id.");
 			}
-			Device device = client.getDeviceByHardwareId(hardwareId);
-			if (device == null) {
-				throw new SiteWhereException("Device not found for hardware id: " + hardwareId);
-			}
-			context.setDevice(device);
-			context.setDeviceAssignment(device.getAssignment());
+
+			DeviceAssignment assignment = client.getCurrentAssignmentForDevice(hardwareId);
+			context.setDeviceAssignment(assignment);
 			context.setUnsavedDeviceLocations(delegateInstance.getLocations());
 			context.setUnsavedDeviceMeasurements(delegateInstance.getMeasurements());
 			context.setUnsavedDeviceAlerts(delegateInstance.getAlerts());
@@ -338,7 +403,7 @@ public class SiteWhereConnector {
 	 * Creates a SiteWhere context from the event payload with the assumption that the
 	 * payload is a JSON string repesenting a {@link DeviceEventBatch} object.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:emulator}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:emulator}
 	 * 
 	 * @param event
 	 *            current Mule event
@@ -353,65 +418,187 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Extracts all alerts from the current SiteWhere context and makes them the payload.
+	 * Subscribes to Hazelcast measurements device events from SiteWhere for processing in
+	 * Mule.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample sitewhere:extract-alerts}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:subscribe-measurements}
 	 * 
-	 * @param event
-	 *            current Mule event
-	 * @return list of alerts extracted from the current context
-	 * @throws SiteWhereException
-	 *             if there is an error creating the context
+	 * @param callback
+	 *            needed to generate new Mule messages
+	 * @throws MuleException
+	 *             if not able to connect to Hazelcast.
 	 */
-	@Inject
-	@Processor
-	public List<IDeviceAlert> extractAlerts(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		return context.getDeviceAlerts();
+	@Source
+	public void subscribeMeasurements(final SourceCallback callback) throws MuleException {
+		if (!isConnected()) {
+			connect();
+		}
+
+		ITopic<DeviceMeasurements> measurementsTopic =
+				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_MEASUREMENTS_ADDED);
+		measurementsTopic.addMessageListener(new MeasurementsEventListener(callback));
+		LOGGER.info("Registered for device measurement events from SiteWhere.");
 	}
 
 	/**
-	 * Extracts all locations from the current SiteWhere context and makes them the
-	 * payload.
+	 * Handles inbound measurements events.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
-	 * sitewhere:extract-locations}
-	 * 
-	 * @param event
-	 *            current Mule event
-	 * @return list of locations extracted from the current context
-	 * @throws SiteWhereException
-	 *             if there is an error creating the context
+	 * @author Derek
 	 */
-	@Inject
-	@Processor
-	public List<IDeviceLocation> extractLocations(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		return context.getDeviceLocations();
+	private class MeasurementsEventListener implements MessageListener<DeviceMeasurements> {
+
+		/** Used to put data on the bus */
+		private SourceCallback callback;
+
+		public MeasurementsEventListener(SourceCallback callback) {
+			this.callback = callback;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see com.hazelcast.core.MessageListener#onMessage(com.hazelcast.core.Message)
+		 */
+		@Override
+		public void onMessage(Message<DeviceMeasurements> message) {
+			DeviceMeasurements measurements = message.getMessageObject();
+			try {
+				LOGGER.debug("Received measurements for: " + measurements.getId());
+				ISiteWhereContext context = getContextFor(measurements);
+				context.getDeviceMeasurements().add(measurements);
+				callback.process(context);
+			} catch (Exception e) {
+				LOGGER.error("Unable to process measurements device event.", e);
+			}
+		}
 	}
 
 	/**
-	 * Extracts all measurements from the current SiteWhere context and makes them the
-	 * payload.
+	 * Subscribes to Hazelcast location device events from SiteWhere for processing in
+	 * Mule.
 	 * 
-	 * {@sample.xml ../../../doc/SiteWhere-connector.xml.sample
-	 * sitewhere:extract-measurements}
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:subscribe-locations}
 	 * 
-	 * @param event
-	 *            current Mule event
-	 * @return list of measurements extracted from the current context
-	 * @throws SiteWhereException
-	 *             if there is an error creating the context
+	 * @param callback
+	 *            needed to generate new Mule messages
+	 * @throws MuleException
+	 *             if not able to connect to Hazelcast.
 	 */
-	@Inject
-	@Processor
-	public List<IDeviceMeasurements> extractMeasurements(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		return context.getDeviceMeasurements();
+	@Source
+	public void subscribeLocations(final SourceCallback callback) throws MuleException {
+		if (!isConnected()) {
+			connect();
+		}
+
+		ITopic<DeviceLocation> measurementsTopic =
+				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_LOCATION_ADDED);
+		measurementsTopic.addMessageListener(new LocationsEventListener(callback));
+		LOGGER.info("Registered for device location events from SiteWhere.");
 	}
 
 	/**
-	 * Get the SiteWhereContext from a pre-determined flow variable.
+	 * Handles inbound location events.
+	 * 
+	 * @author Derek
+	 */
+	private class LocationsEventListener implements MessageListener<DeviceLocation> {
+
+		/** Used to put data on the bus */
+		private SourceCallback callback;
+
+		public LocationsEventListener(SourceCallback callback) {
+			this.callback = callback;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see com.hazelcast.core.MessageListener#onMessage(com.hazelcast.core.Message)
+		 */
+		@Override
+		public void onMessage(Message<DeviceLocation> message) {
+			DeviceLocation location = message.getMessageObject();
+			try {
+				LOGGER.debug("Received location for: " + location.getId());
+				ISiteWhereContext context = getContextFor(location);
+				context.getDeviceLocations().add(location);
+				callback.process(context);
+			} catch (Exception e) {
+				LOGGER.error("Unable to process location device event.", e);
+			}
+		}
+	}
+
+	/**
+	 * Subscribes to Hazelcast alert device events from SiteWhere for processing in Mule.
+	 * 
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:subscribe-alerts}
+	 * 
+	 * @param callback
+	 *            needed to generate new Mule messages
+	 * @throws MuleException
+	 *             if not able to connect to Hazelcast.
+	 */
+	@Source
+	public void subscribeAlerts(final SourceCallback callback) throws MuleException {
+		if (!isConnected()) {
+			connect();
+		}
+
+		ITopic<DeviceAlert> measurementsTopic = hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_ALERT_ADDED);
+		measurementsTopic.addMessageListener(new AlertsEventListener(callback));
+		LOGGER.info("Registered for device alert events from SiteWhere.");
+	}
+
+	/**
+	 * Handles inbound alert events.
+	 * 
+	 * @author Derek
+	 */
+	private class AlertsEventListener implements MessageListener<DeviceAlert> {
+
+		/** Used to put data on the bus */
+		private SourceCallback callback;
+
+		public AlertsEventListener(SourceCallback callback) {
+			this.callback = callback;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see com.hazelcast.core.MessageListener#onMessage(com.hazelcast.core.Message)
+		 */
+		@Override
+		public void onMessage(Message<DeviceAlert> message) {
+			DeviceAlert alert = message.getMessageObject();
+			try {
+				LOGGER.debug("Received alert for: " + alert.getId());
+				ISiteWhereContext context = getContextFor(alert);
+				context.getDeviceAlerts().add(alert);
+				callback.process(context);
+			} catch (Exception e) {
+				LOGGER.error("Unable to process alert device event.", e);
+			}
+		}
+	}
+
+	/**
+	 * Creates a {@link ISiteWhereContext} based on the given event.
+	 * 
+	 * @param event
+	 * @return
+	 * @throws SiteWhereException
+	 */
+	protected ISiteWhereContext getContextFor(IDeviceEvent event) throws SiteWhereException {
+		SiteWhereContext context = new SiteWhereContext();
+		DeviceAssignment assignment = client.getDeviceAssignmentByToken(event.getDeviceAssignmentToken());
+		context.setDeviceAssignment(assignment);
+		return context;
+	}
+
+	/**
+	 * Get the SiteWhereContext from a pre-determined flow variable or message payload.
 	 * 
 	 * @param event
 	 * @return
@@ -421,7 +608,14 @@ public class SiteWhereConnector {
 		ISiteWhereContext context =
 				(ISiteWhereContext) event.getFlowVariable(IMuleProperties.SITEWHERE_CONTEXT);
 		if (context == null) {
-			throw new SiteWhereException("SiteWhereContext not found in expected flow variable.");
+			Object payload = event.getMessage().getPayload();
+			if (payload instanceof ISiteWhereContext) {
+				context = (ISiteWhereContext) payload;
+			}
+		}
+		if (context == null) {
+			throw new SiteWhereException(
+					"SiteWhereContext not found in expected flow variable or message payload.");
 		}
 		return context;
 	}
@@ -466,5 +660,37 @@ public class SiteWhereConnector {
 
 	public void setMuleContext(MuleContext muleContext) {
 		this.muleContext = muleContext;
+	}
+
+	public String getHazelcastUsername() {
+		return hazelcastUsername;
+	}
+
+	public void setHazelcastUsername(String hazelcastUsername) {
+		this.hazelcastUsername = hazelcastUsername;
+	}
+
+	public String getHazelcastPassword() {
+		return hazelcastPassword;
+	}
+
+	public void setHazelcastPassword(String hazelcastPassword) {
+		this.hazelcastPassword = hazelcastPassword;
+	}
+
+	public String getHazelcastAddress() {
+		return hazelcastAddress;
+	}
+
+	public void setHazelcastAddress(String hazelcastAddress) {
+		this.hazelcastAddress = hazelcastAddress;
+	}
+
+	protected boolean isConnected() {
+		return connected;
+	}
+
+	protected void setConnected(boolean connected) {
+		this.connected = connected;
 	}
 }

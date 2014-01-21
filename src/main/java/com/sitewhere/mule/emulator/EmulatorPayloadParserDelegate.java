@@ -18,11 +18,11 @@ import org.mule.api.MuleException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sitewhere.rest.model.device.DeviceEventBatch;
+import com.sitewhere.rest.model.device.event.DeviceEventBatch;
 import com.sitewhere.spi.SiteWhereException;
-import com.sitewhere.spi.device.request.IDeviceAlertCreateRequest;
-import com.sitewhere.spi.device.request.IDeviceLocationCreateRequest;
-import com.sitewhere.spi.device.request.IDeviceMeasurementsCreateRequest;
+import com.sitewhere.spi.device.event.request.IDeviceAlertCreateRequest;
+import com.sitewhere.spi.device.event.request.IDeviceLocationCreateRequest;
+import com.sitewhere.spi.device.event.request.IDeviceMeasurementsCreateRequest;
 import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
 
 /**
