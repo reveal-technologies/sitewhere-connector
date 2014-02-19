@@ -34,3 +34,6 @@
 <!-- BEGIN_INCLUDE(sitewhere:subscribe-alerts) -->
     <sitewhere:subscribe-alerts/>
 <!-- END_INCLUDE(sitewhere:subscribe-alerts) -->
+<!-- BEGIN_INCLUDE(sitewhere:subscribe-command-invocations) -->
+    <sitewhere:subscribe-command-invocations/>
+<!-- END_INCLUDE(sitewhere:subscribe-command-invocations) -->

@@ -37,6 +37,7 @@ import com.sitewhere.rest.model.device.Device;
 import com.sitewhere.rest.model.device.DeviceAssignment;
 import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.model.device.event.DeviceAlert;
+import com.sitewhere.rest.model.device.event.DeviceCommandInvocation;
 import com.sitewhere.rest.model.device.event.DeviceEventBatch;
 import com.sitewhere.rest.model.device.event.DeviceEventBatchResponse;
 import com.sitewhere.rest.model.device.event.DeviceLocation;
@@ -136,9 +137,6 @@ public class SiteWhereConnector {
 		client = new SiteWhereClient(getApiUrl(), "admin", "password");
 		swClassLoader = new SiteWhereClassloader(muleContext);
 		LOGGER.info("SiteWhere connector using base REST url: " + getApiUrl());
-		if (!isConnected()) {
-			connect();
-		}
 	}
 
 	/**
@@ -146,19 +144,21 @@ public class SiteWhereConnector {
 	 * 
 	 * @throws MuleException
 	 */
-	protected void connect() throws MuleException {
-		ClientConfig clientConfig = new ClientConfig();
-		clientConfig.getGroupConfig().setName(getHazelcastUsername());
-		clientConfig.getGroupConfig().setPassword(getHazelcastPassword());
-		clientConfig.addAddress(getHazelcastAddress());
-		clientConfig.setSmartRouting(true);
-
+	protected synchronized void connect() throws MuleException {
+		if (connected) {
+			return;
+		}
 		try {
+			ClientConfig clientConfig = new ClientConfig();
+			clientConfig.getGroupConfig().setName(getHazelcastUsername());
+			clientConfig.getGroupConfig().setPassword(getHazelcastPassword());
+			clientConfig.addAddress(getHazelcastAddress());
+			clientConfig.setSmartRouting(true);
+
 			this.hazelcast = HazelcastClient.newHazelcastClient(clientConfig);
-			this.connected = true;
 			LOGGER.info("Connected to SiteWhere Hazelcast cluster.");
+			this.connected = true;
 		} catch (Exception e) {
-			this.connected = false;
 			throw new DefaultMuleException("Unable to connect to SiteWhere Hazelcast cluster.", e);
 		}
 	}
@@ -430,10 +430,7 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeMeasurements(final SourceCallback callback) throws MuleException {
-		if (!isConnected()) {
-			connect();
-		}
-
+		connect();
 		ITopic<DeviceMeasurements> measurementsTopic =
 				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_MEASUREMENTS_ADDED);
 		measurementsTopic.addMessageListener(new MeasurementsEventListener(callback));
@@ -486,13 +483,9 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeLocations(final SourceCallback callback) throws MuleException {
-		if (!isConnected()) {
-			connect();
-		}
-
-		ITopic<DeviceLocation> measurementsTopic =
-				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_LOCATION_ADDED);
-		measurementsTopic.addMessageListener(new LocationsEventListener(callback));
+		connect();
+		ITopic<DeviceLocation> locationsTopic = hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_LOCATION_ADDED);
+		locationsTopic.addMessageListener(new LocationsEventListener(callback));
 		LOGGER.info("Registered for device location events from SiteWhere.");
 	}
 
@@ -530,7 +523,8 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Subscribes to Hazelcast alert device events from SiteWhere for processing in Mule.
+	 * Subscribes to Hazelcast {@link DeviceAlert} events from SiteWhere for processing in
+	 * Mule.
 	 * 
 	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:subscribe-alerts}
 	 * 
@@ -541,10 +535,7 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeAlerts(final SourceCallback callback) throws MuleException {
-		if (!isConnected()) {
-			connect();
-		}
-
+		connect();
 		ITopic<DeviceAlert> measurementsTopic = hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_ALERT_ADDED);
 		measurementsTopic.addMessageListener(new AlertsEventListener(callback));
 		LOGGER.info("Registered for device alert events from SiteWhere.");
@@ -579,6 +570,60 @@ public class SiteWhereConnector {
 				callback.process(context);
 			} catch (Exception e) {
 				LOGGER.error("Unable to process alert device event.", e);
+			}
+		}
+	}
+
+	/**
+	 * Subscribes to Hazelcast {@link DeviceCommandInvocation} events from SiteWhere for
+	 * processing in Mule.
+	 * 
+	 * {@sample.xml ../../../doc/sitewhere-connector.xml
+	 * sitewhere:subscribe-command-invocations}
+	 * 
+	 * @param callback
+	 *            needed to generate new Mule messages
+	 * @throws MuleException
+	 *             if not able to connect to Hazelcast.
+	 */
+	@Source
+	public void subscribeCommandInvocations(final SourceCallback callback) throws MuleException {
+		connect();
+		ITopic<DeviceCommandInvocation> commandsTopic =
+				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_COMMAND_INVOCATION_ADDED);
+		commandsTopic.addMessageListener(new CommandInvocationsEventListener(callback));
+		LOGGER.info("Registered for device command invocation events from SiteWhere.");
+	}
+
+	/**
+	 * Handles inbound {@link DeviceCommandInvocation} events.
+	 * 
+	 * @author Derek
+	 */
+	private class CommandInvocationsEventListener implements MessageListener<DeviceCommandInvocation> {
+
+		/** Used to put data on the bus */
+		private SourceCallback callback;
+
+		public CommandInvocationsEventListener(SourceCallback callback) {
+			this.callback = callback;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see com.hazelcast.core.MessageListener#onMessage(com.hazelcast.core.Message)
+		 */
+		@Override
+		public void onMessage(Message<DeviceCommandInvocation> message) {
+			DeviceCommandInvocation invocation = message.getMessageObject();
+			try {
+				LOGGER.debug("Received command invocation for: " + invocation.getId());
+				ISiteWhereContext context = getContextFor(invocation);
+				context.getDeviceCommandInvocations().add(invocation);
+				callback.process(context);
+			} catch (Exception e) {
+				LOGGER.error("Unable to process device command invocation event.", e);
 			}
 		}
 	}
@@ -684,13 +729,5 @@ public class SiteWhereConnector {
 
 	public void setHazelcastAddress(String hazelcastAddress) {
 		this.hazelcastAddress = hazelcastAddress;
-	}
-
-	protected boolean isConnected() {
-		return connected;
-	}
-
-	protected void setConnected(boolean connected) {
-		this.connected = connected;
 	}
 }
