@@ -37,3 +37,6 @@
 <!-- BEGIN_INCLUDE(sitewhere:subscribe-command-invocations) -->
     <sitewhere:subscribe-command-invocations/>
 <!-- END_INCLUDE(sitewhere:subscribe-command-invocations) -->
+<!-- BEGIN_INCLUDE(sitewhere:subscribe-command-responses) -->
+    <sitewhere:subscribe-command-responses/>
+<!-- END_INCLUDE(sitewhere:subscribe-command-responses) -->
