@@ -22,8 +22,6 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.device.event.IDeviceAlert;
-import com.sitewhere.spi.device.event.IDeviceCommandInvocation;
-import com.sitewhere.spi.device.event.IDeviceCommandResponse;
 import com.sitewhere.spi.device.event.IDeviceLocation;
 import com.sitewhere.spi.device.event.IDeviceMeasurements;
 import com.sitewhere.spi.device.event.request.IDeviceAlertCreateRequest;
@@ -110,22 +108,6 @@ public class SiteWhereContextLogger {
 			for (IDeviceAlert alert : context.getDeviceAlerts()) {
 				String alertAsJson = jsonMapper.writer(jsonPrinter).writeValueAsString(alert);
 				messages.addAll(getJsonAsStringList(alertAsJson));
-				messages.add("");
-			}
-		}
-		if (context.getDeviceCommandInvocations().size() > 0) {
-			messages.add("--- Device Command Invocations ---");
-			for (IDeviceCommandInvocation invocation : context.getDeviceCommandInvocations()) {
-				String asJson = jsonMapper.writer(jsonPrinter).writeValueAsString(invocation);
-				messages.addAll(getJsonAsStringList(asJson));
-				messages.add("");
-			}
-		}
-		if (context.getDeviceCommandResponses().size() > 0) {
-			messages.add("--- Device Command Responses ---");
-			for (IDeviceCommandResponse response : context.getDeviceCommandResponses()) {
-				String asJson = jsonMapper.writer(jsonPrinter).writeValueAsString(response);
-				messages.addAll(getJsonAsStringList(asJson));
 				messages.add("");
 			}
 		}

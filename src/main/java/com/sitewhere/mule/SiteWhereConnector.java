@@ -38,7 +38,6 @@ import com.sitewhere.rest.model.device.DeviceAssignment;
 import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.model.device.event.DeviceAlert;
 import com.sitewhere.rest.model.device.event.DeviceCommandInvocation;
-import com.sitewhere.rest.model.device.event.DeviceCommandResponse;
 import com.sitewhere.rest.model.device.event.DeviceEventBatch;
 import com.sitewhere.rest.model.device.event.DeviceEventBatchResponse;
 import com.sitewhere.rest.model.device.event.DeviceLocation;
@@ -658,58 +657,6 @@ public class SiteWhereConnector {
 				callback.process(invocation);
 			} catch (Exception e) {
 				LOGGER.error("Unable to process device command invocation event.", e);
-			}
-		}
-	}
-
-	/**
-	 * Subscribes to Hazelcast {@link DeviceCommandResponse} events from SiteWhere for
-	 * processing in Mule.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml
-	 * sitewhere:subscribe-command-responses}
-	 * 
-	 * @param callback
-	 *            needed to generate new Mule messages
-	 * @throws MuleException
-	 *             if not able to connect to Hazelcast.
-	 */
-	@Source
-	public void subscribeCommandResponses(final SourceCallback callback) throws MuleException {
-		connect();
-		ITopic<DeviceCommandResponse> responsesTopic =
-				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_COMMAND_RESPONSE_ADDED);
-		responsesTopic.addMessageListener(new CommandResponsesEventListener(callback));
-		LOGGER.info("Registered for device command response events from SiteWhere.");
-	}
-
-	/**
-	 * Handles inbound {@link DeviceCommandResponse} events.
-	 * 
-	 * @author Derek
-	 */
-	private class CommandResponsesEventListener implements MessageListener<DeviceCommandResponse> {
-
-		/** Used to put data on the bus */
-		private SourceCallback callback;
-
-		public CommandResponsesEventListener(SourceCallback callback) {
-			this.callback = callback;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see com.hazelcast.core.MessageListener#onMessage(com.hazelcast.core.Message)
-		 */
-		@Override
-		public void onMessage(Message<DeviceCommandResponse> message) {
-			DeviceCommandResponse response = message.getMessageObject();
-			try {
-				LOGGER.debug("Received command response for: " + response.getId());
-				callback.process(response);
-			} catch (Exception e) {
-				LOGGER.error("Unable to process device command response event.", e);
 			}
 		}
 	}
