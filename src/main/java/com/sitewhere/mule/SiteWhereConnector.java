@@ -44,7 +44,7 @@ import com.sitewhere.rest.model.device.event.DeviceEventBatchResponse;
 import com.sitewhere.rest.model.device.event.DeviceLocation;
 import com.sitewhere.rest.model.device.event.DeviceMeasurements;
 import com.sitewhere.rest.model.search.SearchResults;
-import com.sitewhere.rest.service.SiteWhereClient;
+import com.sitewhere.spi.ISiteWhereClient;
 import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.SiteWhereException;
 import com.sitewhere.spi.device.IDeviceAssignment;
@@ -69,7 +69,7 @@ public class SiteWhereConnector {
 	private static Logger LOGGER = Logger.getLogger(SiteWhereConnector.class);
 
 	/** SiteWhere client */
-	private SiteWhereClient client;
+	private ISiteWhereClient client;
 
 	/** Used to log SiteWhereContext to console */
 	private SiteWhereContextLogger contextLogger = new SiteWhereContextLogger();
@@ -167,7 +167,7 @@ public class SiteWhereConnector {
 
 	@Start
 	public void doStart() throws MuleException {
-		client = new SiteWhereClient(getApiUrl(), getRestUsername(), getRestPassword());
+		client = new MuleSiteWhereClient(getApiUrl(), getRestUsername(), getRestPassword());
 		swClassLoader = new SiteWhereClassloader(muleContext);
 		LOGGER.info("SiteWhere connector using base REST url: " + getApiUrl());
 	}
