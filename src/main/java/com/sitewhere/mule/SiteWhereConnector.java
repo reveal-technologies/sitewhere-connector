@@ -23,6 +23,8 @@ import org.mule.api.annotations.lifecycle.Start;
 import org.mule.api.annotations.param.Default;
 import org.mule.api.annotations.param.Optional;
 import org.mule.api.callback.SourceCallback;
+import org.mule.api.lifecycle.LifecycleException;
+import org.mule.config.i18n.MessageFactory;
 
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
@@ -167,9 +169,29 @@ public class SiteWhereConnector {
 
 	@Start
 	public void doStart() throws MuleException {
+		String apiUrl = getApiUrl();
+		if ((apiUrl == null) || (apiUrl.length() == 0)) {
+			throw new LifecycleException(MessageFactory.createStaticMessage("SiteWhere API URL is missing."),
+					this);
+		}
+		char[] chars = apiUrl.toCharArray();
+		char last = chars[chars.length - 1];
+		if ((last != '/') && (last != '\\')) {
+			this.apiUrl += "/";
+			LOGGER.info("Added trailing slash to URI: " + getApiUrl());
+		}
+
 		client = new MuleSiteWhereClient(getApiUrl(), getRestUsername(), getRestPassword());
+		try {
+			client.getSiteWhereVersion();
+			LOGGER.info("Verified base SiteWhere REST API URL connectivity: " + getApiUrl());
+		} catch (SiteWhereException e) {
+			throw new LifecycleException(
+					MessageFactory.createStaticMessage("Unable to access SiteWhere API at provided URL."),
+					this);
+		}
+
 		swClassLoader = new SiteWhereClassloader(muleContext);
-		LOGGER.info("SiteWhere connector using base REST url: " + getApiUrl());
 	}
 
 	/**
