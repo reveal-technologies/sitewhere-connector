@@ -3,9 +3,6 @@
  */
 package com.sitewhere.mule;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.inject.Inject;
 
 import org.apache.log4j.Logger;
@@ -32,31 +29,21 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
-import com.sitewhere.geo.zone.ZoneMatcher;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
-import com.sitewhere.mule.emulator.EmulatorPayloadParserDelegate;
 import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.DeviceAssignment;
-import com.sitewhere.rest.model.device.Zone;
 import com.sitewhere.rest.model.device.event.DeviceAlert;
 import com.sitewhere.rest.model.device.event.DeviceCommandInvocation;
 import com.sitewhere.rest.model.device.event.DeviceCommandResponse;
-import com.sitewhere.rest.model.device.event.DeviceEventBatch;
-import com.sitewhere.rest.model.device.event.DeviceEventBatchResponse;
 import com.sitewhere.rest.model.device.event.DeviceLocation;
 import com.sitewhere.rest.model.device.event.DeviceMeasurements;
-import com.sitewhere.rest.model.search.SearchResults;
 import com.sitewhere.spi.ISiteWhereClient;
 import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.SiteWhereException;
 import com.sitewhere.spi.device.IDeviceAssignment;
 import com.sitewhere.spi.device.event.IDeviceEvent;
-import com.sitewhere.spi.device.event.IDeviceLocation;
-import com.sitewhere.spi.device.event.request.IDeviceAlertCreateRequest;
 import com.sitewhere.spi.mule.IMuleProperties;
-import com.sitewhere.spi.mule.delegate.IPayloadParserDelegate;
 import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
-import com.sitewhere.spi.mule.delegate.IZoneProcessingDelegate;
 import com.sitewhere.spi.server.hazelcast.ISiteWhereHazelcast;
 
 /**
@@ -220,150 +207,6 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Populates a new SiteWhere context from information in the current Mule event.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml
-	 * sitewhere:payload-to-sitewhere-context}
-	 * 
-	 * @param delegate
-	 *            delegate implementing <code>IPayloadParserDelegate</code>
-	 * @param event
-	 *            current Mule event
-	 * @return the resulting SiteWhere context.
-	 * @throws SiteWhereException
-	 *             if an exception is thrown from the delegate.
-	 */
-	@Inject
-	@Processor
-	public ISiteWhereContext payloadToSitewhereContext(
-			@FriendlyName("Payload Parser Delegate") String delegate, MuleEvent event)
-			throws SiteWhereException {
-		SiteWhereContext context = new SiteWhereContext();
-		event.setFlowVariable(IMuleProperties.SITEWHERE_CONTEXT, context);
-
-		IPayloadParserDelegate delegateInstance = null;
-		if (delegate != null) {
-			delegateInstance = createDelegate(delegate, IPayloadParserDelegate.class);
-			delegateInstance.initialize(event);
-			String hardwareId = delegateInstance.getDeviceHardwareId();
-			if (hardwareId == null) {
-				throw new SiteWhereException("Payload parser delegate returned null for hardware id.");
-			}
-
-			DeviceAssignment assignment = client.getCurrentAssignmentForDevice(hardwareId);
-			context.setDeviceAssignment(assignment);
-			context.setUnsavedDeviceLocations(delegateInstance.getLocations());
-			context.setUnsavedDeviceMeasurements(delegateInstance.getMeasurements());
-			context.setUnsavedDeviceAlerts(delegateInstance.getAlerts());
-			context.setReplyTo(delegateInstance.getReplyTo());
-			return context;
-		} else {
-			throw new SiteWhereException("Payload parser delegate required but not specified.");
-		}
-	}
-
-	/**
-	 * Creates a SiteWhere context from the event payload with the assumption that the
-	 * payload is a JSON string repesenting a {@link DeviceEventBatch} object.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:emulator}
-	 * 
-	 * @param event
-	 *            current Mule event
-	 * @return a SiteWhere context built from the payload
-	 * @throws SiteWhereException
-	 *             if there is an error creating the context
-	 */
-	@Inject
-	@Processor
-	public ISiteWhereContext emulator(MuleEvent event) throws SiteWhereException {
-		return payloadToSitewhereContext(EmulatorPayloadParserDelegate.class.getName(), event);
-	}
-
-	/**
-	 * Save the device measurements currently in the SiteWhereContext.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:save-device-events}
-	 * 
-	 * 
-	 * @param event
-	 *            current Mule event
-	 * @return the updated SiteWhere context
-	 * @throws SiteWhereException
-	 *             if events or state can not be saved
-	 */
-	@Inject
-	@Processor
-	public ISiteWhereContext saveDeviceEvents(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-
-		// Send unsaved events in a batch to be saved.
-		DeviceEventBatch batch = new DeviceEventBatch();
-		batch.getMeasurements().addAll(context.getUnsavedDeviceMeasurements());
-		batch.getLocations().addAll(context.getUnsavedDeviceLocations());
-		batch.getAlerts().addAll(context.getUnsavedDeviceAlerts());
-		DeviceEventBatchResponse response =
-				client.addDeviceEventBatch(context.getDeviceAssignment().getDeviceHardwareId(), batch);
-
-		// Clear out unsaved events and copy saved events from response.
-		context.getUnsavedDeviceMeasurements().clear();
-		context.getUnsavedDeviceLocations().clear();
-		context.getUnsavedDeviceAlerts().clear();
-		context.getDeviceMeasurements().addAll(response.getCreatedMeasurements());
-		context.getDeviceLocations().addAll(response.getCreatedLocations());
-		context.getDeviceAlerts().addAll(response.getCreatedAlerts());
-
-		return context;
-	}
-
-	/**
-	 * Saves the current {@link ISiteWhereContext} payload into a standard flow variable
-	 * location.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:push-sitewhere-context}
-	 * 
-	 * @param event
-	 *            injected Mule event
-	 * @return the event after processing.
-	 * @throws SiteWhereException
-	 *             if payload is not a SiteWhere context
-	 */
-	@Inject
-	@Processor()
-	public MuleEvent pushSitewhereContext(MuleEvent event) throws SiteWhereException {
-		if (event.getMessage().getPayload() instanceof ISiteWhereContext) {
-			event.setFlowVariable(IMuleProperties.SITEWHERE_CONTEXT, event.getMessage().getPayload());
-			return event;
-		} else {
-			throw new SiteWhereException("Payload does not implement " + ISiteWhereContext.class.getName());
-		}
-	}
-
-	/**
-	 * Pulls the {@link ISiteWhereContext} from the standard flow variable into the
-	 * message payload.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:pop-sitewhere-context}
-	 * 
-	 * @param event
-	 *            injected Mule event
-	 * @return the event after processing.
-	 * @throws SiteWhereException
-	 *             if no SiteWhere context is in expected flow variable
-	 */
-	@Inject
-	@Processor()
-	public MuleEvent popSitewhereContext(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		if (context != null) {
-			event.getMessage().setPayload(context);
-			return event;
-		} else {
-			throw new SiteWhereException("No SiteWhere context found in expected flow variable.");
-		}
-	}
-
-	/**
 	 * Builds an {@link ISiteWhereContext} around the {@link IDeviceEvent} in the current
 	 * payload. Looks up details for the assignment associated with the event including
 	 * detailed device information.
@@ -417,41 +260,6 @@ public class SiteWhereConnector {
 			LOGGER.error(e);
 			return event;
 		}
-	}
-
-	/**
-	 * Check whether locations are within zones specified for the site.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:perform-zone-checks}
-	 * 
-	 * @param delegate
-	 *            delegate that generates alerts based on zones.
-	 * @param event
-	 *            mule event
-	 * @return a list of alerts create requests generated from the zone checks.
-	 * @throws SiteWhereException
-	 *             if processing fails
-	 */
-	@Inject
-	@Processor
-	public List<IDeviceAlertCreateRequest> performZoneChecks(@FriendlyName("Zone Delegate") String delegate,
-			MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		IZoneProcessingDelegate delegateInstance = null;
-		List<IDeviceAlertCreateRequest> results = new ArrayList<IDeviceAlertCreateRequest>();
-		if (delegate != null) {
-			delegateInstance = createDelegate(delegate, IZoneProcessingDelegate.class);
-			SearchResults<Zone> zones = client.listZonesForSite(context.getDeviceAssignment().getSiteToken());
-			LOGGER.info("Performing zone checks for " + zones.getNumResults() + " zones.");
-			for (IDeviceLocation location : context.getDeviceLocations()) {
-				ZoneMatcher matcher = new ZoneMatcher(location, zones.getResults());
-				List<IDeviceAlertCreateRequest> alerts = delegateInstance.handleZoneResults(context, matcher);
-				if (alerts != null) {
-					results.addAll(alerts);
-				}
-			}
-		}
-		return results;
 	}
 
 	/**
