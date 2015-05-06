@@ -7,7 +7,6 @@
 	<classpathentry kind="var" path="M2_REPO/javax/annotation/jsr250-api/1.0/jsr250-api-1.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/javax/inject/javax.inject/1/javax.inject-1.jar"/>
 	<classpathentry kind="var" path="M2_REPO/javax/ws/rs/jsr311-api/1.1.1/jsr311-api-1.1.1.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
 	<classpathentry kind="var" path="M2_REPO/commons-beanutils/commons-beanutils/1.8.0/commons-beanutils-1.8.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/safehaus/jug/jug/2.0.0/jug-2.0.0-asl.jar"/>
 	<classpathentry kind="var" path="M2_REPO/commons-cli/commons-cli/1.2/commons-cli-1.2.jar"/>
@@ -52,5 +51,6 @@
 	<classpathentry kind="var" path="M2_REPO/com/hazelcast/hazelcast/3.1.5/hazelcast-3.1.5.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/mule/tools/devkit/mule-devkit-annotations/3.4.2/mule-devkit-annotations-3.4.2.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/hazelcast/hazelcast-client/3.1.5/hazelcast-client-3.1.5.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
