@@ -51,7 +51,7 @@ import com.sitewhere.spi.server.hazelcast.ISiteWhereHazelcast;
  * 
  * @author Derek Adams
  */
-@Connector(name = "sitewhere", schemaVersion = "1.0.2", friendlyName = "SiteWhere")
+@Connector(name = "sitewhere", schemaVersion = "1.1.0", friendlyName = "SiteWhere")
 public class SiteWhereConnector {
 
 	/** Static logger instance */
