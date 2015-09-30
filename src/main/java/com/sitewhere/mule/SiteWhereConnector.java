@@ -29,6 +29,7 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
+import com.sitewhere.mule.connector.MuleSiteWhereClient;
 import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.rest.model.SiteWhereContext;
 import com.sitewhere.rest.model.device.DeviceAssignment;
@@ -51,7 +52,7 @@ import com.sitewhere.spi.server.hazelcast.ISiteWhereHazelcast;
  * 
  * @author Derek Adams
  */
-@Connector(name = "sitewhere", schemaVersion = "1.1.0", friendlyName = "SiteWhere")
+@Connector(name = "sitewhere", schemaVersion = "1.2.0", friendlyName = "SiteWhere")
 public class SiteWhereConnector {
 
 	/** Static logger instance */
@@ -101,6 +102,16 @@ public class SiteWhereConnector {
 	@Placement(group = "REST")
 	@FriendlyName("Password")
 	private String restPassword;
+
+	/**
+	 * SiteWhere tenant authentication token.
+	 */
+	@Optional
+	@Configurable
+	@Default("sitewhere1234567890")
+	@Placement(group = "REST")
+	@FriendlyName("Tenant Auth Token")
+	private String tenantAuthToken;
 
 	/**
 	 * SiteWhere Hazelcast username.
@@ -168,7 +179,9 @@ public class SiteWhereConnector {
 			LOGGER.info("Added trailing slash to URI: " + getApiUrl());
 		}
 
-		client = new MuleSiteWhereClient(getApiUrl(), getRestUsername(), getRestPassword());
+		client =
+				new MuleSiteWhereClient(getApiUrl(), getRestUsername(), getRestPassword(),
+						getTenantAuthToken(), 2000);
 		try {
 			client.getSiteWhereVersion();
 			LOGGER.info("Verified base SiteWhere REST API URL connectivity: " + getApiUrl());
@@ -621,6 +634,14 @@ public class SiteWhereConnector {
 
 	public void setRestPassword(String restPassword) {
 		this.restPassword = restPassword;
+	}
+
+	public String getTenantAuthToken() {
+		return tenantAuthToken;
+	}
+
+	public void setTenantAuthToken(String tenantAuthToken) {
+		this.tenantAuthToken = tenantAuthToken;
 	}
 
 	public Boolean getDebug() {
