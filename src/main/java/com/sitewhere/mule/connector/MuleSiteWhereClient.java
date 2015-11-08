@@ -281,8 +281,8 @@ public class MuleSiteWhereClient implements ISiteWhereClient {
 	}
 
 	@Override
-	public SearchResults<DeviceMeasurements> listDeviceMeasurements(String assignmentToken, int maxCount)
-			throws SiteWhereException {
+	public SearchResults<DeviceMeasurements> listDeviceMeasurements(String assignmentToken,
+			DateRangeSearchCriteria searchCriteria) throws SiteWhereException {
 		return null;
 	}
 
