@@ -6,45 +6,29 @@ package com.sitewhere.mule;
 import javax.inject.Inject;
 
 import org.apache.log4j.Logger;
-import org.mule.api.DefaultMuleException;
 import org.mule.api.MuleContext;
 import org.mule.api.MuleEvent;
 import org.mule.api.MuleException;
-import org.mule.api.annotations.Configurable;
+import org.mule.api.annotations.Config;
 import org.mule.api.annotations.Connector;
 import org.mule.api.annotations.Processor;
 import org.mule.api.annotations.Source;
-import org.mule.api.annotations.display.FriendlyName;
-import org.mule.api.annotations.display.Placement;
-import org.mule.api.annotations.lifecycle.Start;
-import org.mule.api.annotations.param.Default;
-import org.mule.api.annotations.param.Optional;
 import org.mule.api.callback.SourceCallback;
-import org.mule.api.lifecycle.LifecycleException;
-import org.mule.config.i18n.MessageFactory;
 
-import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
-import com.sitewhere.mule.connector.MuleSiteWhereClient;
-import com.sitewhere.mule.connector.SiteWhereContextLogger;
 import com.sitewhere.rest.model.SiteWhereContext;
-import com.sitewhere.rest.model.device.DeviceAssignment;
 import com.sitewhere.rest.model.device.event.DeviceAlert;
 import com.sitewhere.rest.model.device.event.DeviceCommandInvocation;
 import com.sitewhere.rest.model.device.event.DeviceCommandResponse;
 import com.sitewhere.rest.model.device.event.DeviceLocation;
 import com.sitewhere.rest.model.device.event.DeviceMeasurements;
-import com.sitewhere.spi.ISiteWhereClient;
 import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.SiteWhereException;
 import com.sitewhere.spi.device.IDeviceAssignment;
 import com.sitewhere.spi.device.event.IDeviceEvent;
 import com.sitewhere.spi.mule.IMuleProperties;
-import com.sitewhere.spi.mule.delegate.ISiteWhereDelegate;
 import com.sitewhere.spi.server.hazelcast.ISiteWhereHazelcast;
 
 /**
@@ -58,166 +42,15 @@ public class SiteWhereConnector {
 	/** Static logger instance */
 	private static Logger LOGGER = Logger.getLogger(SiteWhereConnector.class);
 
-	/** SiteWhere client */
-	private ISiteWhereClient client;
-
 	/** Used to log SiteWhereContext to console */
 	private SiteWhereContextLogger contextLogger = new SiteWhereContextLogger();
 
-	/** Classloader that gets around Mule bugs */
-	private SiteWhereClassloader swClassLoader;
-
-	/** Hazelcast client for SiteWhere */
-	private HazelcastInstance hazelcast;
-
-	/** Indicates whether connected to Hazelcast */
-	private boolean connected = false;
-
-	/**
-	 * SiteWhere API URL.
-	 */
-	@Optional
-	@Configurable
-	@Default("http://localhost:8080/sitewhere/api/")
-	@Placement(group = "REST")
-	@FriendlyName("SiteWhere API URL")
-	private String apiUrl;
-
-	/**
-	 * SiteWhere REST username.
-	 */
-	@Optional
-	@Configurable
-	@Default("admin")
-	@Placement(group = "REST")
-	@FriendlyName("Username")
-	private String restUsername;
-
-	/**
-	 * SiteWhere REST password.
-	 */
-	@Optional
-	@Configurable
-	@Default("password")
-	@Placement(group = "REST")
-	@FriendlyName("Password")
-	private String restPassword;
-
-	/**
-	 * SiteWhere tenant authentication token.
-	 */
-	@Optional
-	@Configurable
-	@Default("sitewhere1234567890")
-	@Placement(group = "REST")
-	@FriendlyName("Tenant Auth Token")
-	private String tenantAuthToken;
-
-	/**
-	 * SiteWhere Hazelcast username.
-	 */
-	@Optional
-	@Configurable
-	@Default("sitewhere")
-	@Placement(group = "Hazelcast", order = 1)
-	@FriendlyName("Username")
-	private String hazelcastUsername;
-
-	/**
-	 * SiteWhere Hazelcast password.
-	 */
-	@Optional
-	@Configurable
-	@Default("sitewhere")
-	@Placement(group = "Hazelcast", order = 2)
-	@FriendlyName("Password")
-	private String hazelcastPassword;
-
-	/**
-	 * SiteWhere Hazelcast address.
-	 */
-	@Optional
-	@Configurable
-	@Default("localhost:5701")
-	@Placement(group = "Hazelcast", order = 3)
-	@FriendlyName("Remote Address")
-	private String hazelcastAddress;
-
-	/**
-	 * Hazelcast connection timeout.
-	 */
-	@Optional
-	@Configurable
-	@Default("30000")
-	@Placement(group = "Hazelcast", order = 4)
-	@FriendlyName("Connection Timeout")
-	private int hzConnectionTimeout;
-
-	/**
-	 * Show extra debug information for SiteWhere components.
-	 */
-	@Optional
-	@Configurable
-	@Default("false")
-	@FriendlyName("Enable SiteWhere Debugging")
-	private Boolean debug = false;
+	/** Connector configuration */
+	@Config
+	ConnectorConfiguration configuration;
 
 	@Inject
 	private MuleContext muleContext;
-
-	@Start
-	public void doStart() throws MuleException {
-		String apiUrl = getApiUrl();
-		if ((apiUrl == null) || (apiUrl.length() == 0)) {
-			throw new LifecycleException(MessageFactory.createStaticMessage("SiteWhere API URL is missing."),
-					this);
-		}
-		char[] chars = apiUrl.toCharArray();
-		char last = chars[chars.length - 1];
-		if ((last != '/') && (last != '\\')) {
-			this.apiUrl += "/";
-			LOGGER.info("Added trailing slash to URI: " + getApiUrl());
-		}
-
-		client =
-				new MuleSiteWhereClient(getApiUrl(), getRestUsername(), getRestPassword(),
-						getTenantAuthToken(), 2000);
-		try {
-			client.getSiteWhereVersion();
-			LOGGER.info("Verified base SiteWhere REST API URL connectivity: " + getApiUrl());
-		} catch (SiteWhereException e) {
-			throw new LifecycleException(
-					MessageFactory.createStaticMessage("Unable to access SiteWhere API at provided URL."),
-					this);
-		}
-
-		swClassLoader = new SiteWhereClassloader(muleContext);
-	}
-
-	/**
-	 * Connect to Hazelcast.
-	 * 
-	 * @throws MuleException
-	 */
-	protected synchronized void connect() throws MuleException {
-		if (connected) {
-			return;
-		}
-		try {
-			ClientConfig clientConfig = new ClientConfig();
-			clientConfig.setConnectionTimeout(getHzConnectionTimeout());
-			clientConfig.getGroupConfig().setName(getHazelcastUsername());
-			clientConfig.getGroupConfig().setPassword(getHazelcastPassword());
-			clientConfig.addAddress(getHazelcastAddress());
-			clientConfig.setSmartRouting(true);
-
-			this.hazelcast = HazelcastClient.newHazelcastClient(clientConfig);
-			LOGGER.info("Connected to SiteWhere Hazelcast cluster.");
-			this.connected = true;
-		} catch (Exception e) {
-			throw new DefaultMuleException("Unable to connect to SiteWhere Hazelcast cluster.", e);
-		}
-	}
 
 	/**
 	 * Builds an {@link ISiteWhereContext} around the {@link IDeviceEvent} in the current
@@ -233,13 +66,13 @@ public class SiteWhereConnector {
 	 * @throws SiteWhereException
 	 *             if no SiteWhere context is in expected flow variable
 	 */
-	@Inject
 	@Processor()
 	public MuleEvent buildContextForEvent(MuleEvent event) throws SiteWhereException {
 		if (event.getMessage().getPayload() instanceof IDeviceEvent) {
 			IDeviceEvent de = (IDeviceEvent) event.getMessage().getPayload();
-			IDeviceAssignment assignment = client.getDeviceAssignmentByToken(de.getDeviceAssignmentToken());
 			SiteWhereContext context = new SiteWhereContext();
+			IDeviceAssignment assignment =
+					getConfiguration().getAssignmentByToken(de.getDeviceAssignmentToken());
 			context.setDeviceAssignment(assignment);
 			context.addDeviceEvent(de);
 			event.setFlowVariable(IMuleProperties.SITEWHERE_CONTEXT, context);
@@ -258,7 +91,6 @@ public class SiteWhereConnector {
 	 *            injected Mule event
 	 * @return the event after processing.
 	 */
-	@Inject
 	@Processor()
 	public MuleEvent logSitewhereContext(MuleEvent event) {
 		try {
@@ -276,33 +108,6 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Executes a delegate class that has access to SiteWhere and Mule internals.
-	 * 
-	 * {@sample.xml ../../../doc/sitewhere-connector.xml sitewhere:sitewhere-delegate}
-	 * 
-	 * @param delegate
-	 *            delegate class to invoke
-	 * @param event
-	 *            mule event
-	 * @return the sitewhere context
-	 * @throws SiteWhereException
-	 *             if processing fails
-	 */
-	@Inject
-	@Processor
-	public Object sitewhereDelegate(@FriendlyName("SiteWhere Delegate") String delegate, MuleEvent event)
-			throws SiteWhereException {
-		ISiteWhereContext context = getSiteWhereContext(event);
-		ISiteWhereDelegate delegateInstance = null;
-		Object response = context;
-		if (delegate != null) {
-			delegateInstance = createDelegate(delegate, ISiteWhereDelegate.class);
-			response = delegateInstance.process(context, client, event);
-		}
-		return response;
-	}
-
-	/**
 	 * Subscribes to Hazelcast measurements device events from SiteWhere for processing in
 	 * Mule.
 	 * 
@@ -315,11 +120,14 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeMeasurements(final SourceCallback callback) throws MuleException {
-		connect();
-		ITopic<DeviceMeasurements> measurementsTopic =
-				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_MEASUREMENTS_ADDED);
-		measurementsTopic.addMessageListener(new MeasurementsEventListener(callback));
-		LOGGER.info("Registered for device measurement events from SiteWhere.");
+		if (configuration.isConnected()) {
+			ITopic<DeviceMeasurements> topic =
+					configuration.getHazelcast().getTopic(ISiteWhereHazelcast.TOPIC_MEASUREMENTS_ADDED);
+			topic.addMessageListener(new MeasurementsEventListener(callback));
+			LOGGER.info("Registered for device measurement events from SiteWhere.");
+		} else {
+			LOGGER.error("Unable to subscribe to measurements. Not connected.");
+		}
 	}
 
 	/**
@@ -366,10 +174,14 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeLocations(final SourceCallback callback) throws MuleException {
-		connect();
-		ITopic<DeviceLocation> locationsTopic = hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_LOCATION_ADDED);
-		locationsTopic.addMessageListener(new LocationsEventListener(callback));
-		LOGGER.info("Registered for device location events from SiteWhere.");
+		if (configuration.isConnected()) {
+			ITopic<DeviceLocation> topic =
+					configuration.getHazelcast().getTopic(ISiteWhereHazelcast.TOPIC_LOCATION_ADDED);
+			topic.addMessageListener(new LocationsEventListener(callback));
+			LOGGER.info("Registered for device location events from SiteWhere.");
+		} else {
+			LOGGER.error("Unable to subscribe to locations. Not connected.");
+		}
 	}
 
 	/**
@@ -416,10 +228,14 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeAlerts(final SourceCallback callback) throws MuleException {
-		connect();
-		ITopic<DeviceAlert> measurementsTopic = hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_ALERT_ADDED);
-		measurementsTopic.addMessageListener(new AlertsEventListener(callback));
-		LOGGER.info("Registered for device alert events from SiteWhere.");
+		if (configuration.isConnected()) {
+			ITopic<DeviceAlert> topic =
+					configuration.getHazelcast().getTopic(ISiteWhereHazelcast.TOPIC_ALERT_ADDED);
+			topic.addMessageListener(new AlertsEventListener(callback));
+			LOGGER.info("Registered for device alert events from SiteWhere.");
+		} else {
+			LOGGER.error("Unable to subscribe to alerts. Not connected.");
+		}
 	}
 
 	/**
@@ -467,11 +283,14 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeCommandInvocations(final SourceCallback callback) throws MuleException {
-		connect();
-		ITopic<DeviceCommandInvocation> commandsTopic =
-				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_COMMAND_INVOCATION_ADDED);
-		commandsTopic.addMessageListener(new CommandInvocationsEventListener(callback));
-		LOGGER.info("Registered for device command invocation events from SiteWhere.");
+		if (configuration.isConnected()) {
+			ITopic<DeviceCommandInvocation> topic =
+					configuration.getHazelcast().getTopic(ISiteWhereHazelcast.TOPIC_COMMAND_INVOCATION_ADDED);
+			topic.addMessageListener(new CommandInvocationsEventListener(callback));
+			LOGGER.info("Registered for device commmand invocation events from SiteWhere.");
+		} else {
+			LOGGER.error("Unable to subscribe to commmand invocations. Not connected.");
+		}
 	}
 
 	/**
@@ -519,11 +338,14 @@ public class SiteWhereConnector {
 	 */
 	@Source
 	public void subscribeCommandResponses(final SourceCallback callback) throws MuleException {
-		connect();
-		ITopic<DeviceCommandResponse> responsesTopic =
-				hazelcast.getTopic(ISiteWhereHazelcast.TOPIC_COMMAND_RESPONSE_ADDED);
-		responsesTopic.addMessageListener(new CommandResponsesEventListener(callback));
-		LOGGER.info("Registered for device command response events from SiteWhere.");
+		if (configuration.isConnected()) {
+			ITopic<DeviceCommandResponse> topic =
+					configuration.getHazelcast().getTopic(ISiteWhereHazelcast.TOPIC_COMMAND_RESPONSE_ADDED);
+			topic.addMessageListener(new CommandResponsesEventListener(callback));
+			LOGGER.info("Registered for device commmand response events from SiteWhere.");
+		} else {
+			LOGGER.error("Unable to subscribe to commmand responses. Not connected.");
+		}
 	}
 
 	/**
@@ -558,20 +380,6 @@ public class SiteWhereConnector {
 	}
 
 	/**
-	 * Creates a {@link ISiteWhereContext} based on the given event.
-	 * 
-	 * @param event
-	 * @return
-	 * @throws SiteWhereException
-	 */
-	protected ISiteWhereContext getContextFor(IDeviceEvent event) throws SiteWhereException {
-		SiteWhereContext context = new SiteWhereContext();
-		DeviceAssignment assignment = client.getDeviceAssignmentByToken(event.getDeviceAssignmentToken());
-		context.setDeviceAssignment(assignment);
-		return context;
-	}
-
-	/**
 	 * Get the SiteWhereContext from a pre-determined flow variable or message payload.
 	 * 
 	 * @param event
@@ -594,64 +402,6 @@ public class SiteWhereConnector {
 		return context;
 	}
 
-	@SuppressWarnings("unchecked")
-	protected <T> T createDelegate(String classname, Class<T> classtype) throws SiteWhereException {
-		try {
-			Class<?> resolved = swClassLoader.loadClass(classname);
-			if (!classtype.isAssignableFrom(resolved)) {
-				throw new SiteWhereException("Delgate not an instance of " + classtype.getName());
-			}
-			Object created = resolved.newInstance();
-			return (T) created;
-		} catch (ClassNotFoundException e) {
-			throw new SiteWhereException("Delegate class not found.", e);
-		} catch (InstantiationException e) {
-			throw new SiteWhereException("Could not create delegate class.", e);
-		} catch (IllegalAccessException e) {
-			throw new SiteWhereException("Could not access delegate class.", e);
-		}
-	}
-
-	public String getApiUrl() {
-		return apiUrl;
-	}
-
-	public void setApiUrl(String apiUrl) {
-		this.apiUrl = apiUrl;
-	}
-
-	public String getRestUsername() {
-		return restUsername;
-	}
-
-	public void setRestUsername(String restUsername) {
-		this.restUsername = restUsername;
-	}
-
-	public String getRestPassword() {
-		return restPassword;
-	}
-
-	public void setRestPassword(String restPassword) {
-		this.restPassword = restPassword;
-	}
-
-	public String getTenantAuthToken() {
-		return tenantAuthToken;
-	}
-
-	public void setTenantAuthToken(String tenantAuthToken) {
-		this.tenantAuthToken = tenantAuthToken;
-	}
-
-	public Boolean getDebug() {
-		return debug;
-	}
-
-	public void setDebug(Boolean debug) {
-		this.debug = debug;
-	}
-
 	public MuleContext getMuleContext() {
 		return muleContext;
 	}
@@ -660,35 +410,11 @@ public class SiteWhereConnector {
 		this.muleContext = muleContext;
 	}
 
-	public String getHazelcastUsername() {
-		return hazelcastUsername;
+	public ConnectorConfiguration getConfiguration() {
+		return configuration;
 	}
 
-	public void setHazelcastUsername(String hazelcastUsername) {
-		this.hazelcastUsername = hazelcastUsername;
-	}
-
-	public String getHazelcastPassword() {
-		return hazelcastPassword;
-	}
-
-	public void setHazelcastPassword(String hazelcastPassword) {
-		this.hazelcastPassword = hazelcastPassword;
-	}
-
-	public String getHazelcastAddress() {
-		return hazelcastAddress;
-	}
-
-	public void setHazelcastAddress(String hazelcastAddress) {
-		this.hazelcastAddress = hazelcastAddress;
-	}
-
-	public int getHzConnectionTimeout() {
-		return hzConnectionTimeout;
-	}
-
-	public void setHzConnectionTimeout(int hzConnectionTimeout) {
-		this.hzConnectionTimeout = hzConnectionTimeout;
+	public void setConfiguration(ConnectorConfiguration configuration) {
+		this.configuration = configuration;
 	}
 }
