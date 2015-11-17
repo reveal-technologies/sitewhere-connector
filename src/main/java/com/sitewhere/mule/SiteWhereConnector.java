@@ -28,7 +28,6 @@ import com.sitewhere.spi.ISiteWhereContext;
 import com.sitewhere.spi.SiteWhereException;
 import com.sitewhere.spi.device.IDeviceAssignment;
 import com.sitewhere.spi.device.event.IDeviceEvent;
-import com.sitewhere.spi.mule.IMuleProperties;
 import com.sitewhere.spi.server.hazelcast.ISiteWhereHazelcast;
 
 /**
@@ -41,6 +40,9 @@ public class SiteWhereConnector {
 
 	/** Static logger instance */
 	private static Logger LOGGER = Logger.getLogger(SiteWhereConnector.class);
+
+	/** Flow variable name for SiteWhere context */
+	private static final String SITEWHERE_CONTEXT = "com.sitewhere.mule.SITEWHERE_CONTEXT";
 
 	/** Used to log SiteWhereContext to console */
 	private SiteWhereContextLogger contextLogger = new SiteWhereContextLogger();
@@ -75,7 +77,7 @@ public class SiteWhereConnector {
 					getConfiguration().getAssignmentByToken(de.getDeviceAssignmentToken());
 			context.setDeviceAssignment(assignment);
 			context.addDeviceEvent(de);
-			event.setFlowVariable(IMuleProperties.SITEWHERE_CONTEXT, context);
+			event.setFlowVariable(SITEWHERE_CONTEXT, context);
 			return event;
 		} else {
 			throw new SiteWhereException("Payload does not implement " + IDeviceEvent.class.getName());
@@ -387,8 +389,7 @@ public class SiteWhereConnector {
 	 * @throws SiteWhereException
 	 */
 	protected ISiteWhereContext getSiteWhereContext(MuleEvent event) throws SiteWhereException {
-		ISiteWhereContext context =
-				(ISiteWhereContext) event.getFlowVariable(IMuleProperties.SITEWHERE_CONTEXT);
+		ISiteWhereContext context = (ISiteWhereContext) event.getFlowVariable(SITEWHERE_CONTEXT);
 		if (context == null) {
 			Object payload = event.getMessage().getPayload();
 			if (payload instanceof ISiteWhereContext) {
