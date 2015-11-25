@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.mule.modules</groupId>
 	<artifactId>sitewhere-connector</artifactId>
-	<version>1.3.0</version>
+	<version>1.4.0</version>
 	<packaging>mule-module</packaging>
 	<name>Mule SiteWhere Anypoint Connector</name>
 
@@ -16,7 +16,7 @@
 
 	<properties>
 		<category>Community</category>
-		<sitewhere.version>1.3.0</sitewhere.version>
+		<sitewhere.version>1.4.0</sitewhere.version>
 		<hazelcast.version>3.5.3</hazelcast.version>
 		<jackson.version>2.1.5</jackson.version>
 		<devkit.studio.package.skip>false</devkit.studio.package.skip>
@@ -25,18 +25,8 @@
 	<dependencies>
 		<dependency>
 			<groupId>com.sitewhere</groupId>
-			<artifactId>sitewhere-client</artifactId>
+			<artifactId>sitewhere-core-api</artifactId>
 			<version>${sitewhere.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.sitewhere</groupId>
-			<artifactId>sitewhere-mule</artifactId>
-			<version>${sitewhere.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.hazelcast</groupId>
-			<artifactId>hazelcast</artifactId>
-			<version>${hazelcast.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.hazelcast</groupId>
