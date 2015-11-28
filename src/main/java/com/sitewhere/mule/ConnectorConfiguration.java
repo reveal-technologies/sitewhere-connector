@@ -91,11 +91,12 @@ public class ConnectorConfiguration {
 		this.tenantId = tenantId;
 		try {
 			ClientConfig clientConfig = new ClientConfig();
-			clientConfig.setConnectionTimeout(HAZELCAST_CONNECTION_TIMEOUT);
 			clientConfig.getGroupConfig().setName(getUsername());
 			clientConfig.getGroupConfig().setPassword(getPassword());
-			clientConfig.addAddress(getHazelcastAddress());
-			clientConfig.setSmartRouting(true);
+
+			clientConfig.getNetworkConfig().setConnectionTimeout(HAZELCAST_CONNECTION_TIMEOUT);
+			clientConfig.getNetworkConfig().addAddress(getHazelcastAddress());
+			clientConfig.getNetworkConfig().setSmartRouting(true);
 
 			this.hazelcast = HazelcastClient.newHazelcastClient(clientConfig);
 			LOGGER.info("Connected to SiteWhere Hazelcast cluster.");
