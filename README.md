@@ -1,7 +1,7 @@
 # SiteWhere AnyPoint Studio Cloud Connector
 
-SiteWhere provides a plugin for MuleSoft AnyPoint Studio that allows
-device events from your IoT application to be forwarded to AnyPoint
+SiteWhere provides a plugin for [MuleSoft AnyPoint Studio](https://www.mulesoft.com/platform/studio) 
+that allows device events from your IoT application to be forwarded to AnyPoint
 Studio for custom processing.
 
 ![SiteWhere] (http://documentation.sitewhere.org/images/integration/mule/log-context.png)
