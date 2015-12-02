@@ -6,6 +6,6 @@ Studio for custom processing.
 
 ![SiteWhere] (http://documentation.sitewhere.org/images/integration/mule/log-context.png)
 
-For a complete tutorial on using the SiteWhere AnyPoint Studio
+For a documentation on using the SiteWhere AnyPoint Studio
 connector, check out the complete [tutorial](http://documentation.sitewhere.org/integration/mule.html) 
 in the SiteWhere [documentation](http://documentation.sitewhere.org).
