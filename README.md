@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.org/sitewhere/sitewhere-connector.svg?branch=master)](https://travis-ci.org/sitewhere/sitewhere-connector)
+
+![SiteWhere] (https://s3.amazonaws.com/sitewhere-demo/sitewhere-small.png)
+
 # SiteWhere AnyPoint Studio Cloud Connector
 
 SiteWhere provides a plugin for [MuleSoft AnyPoint Studio](https://www.mulesoft.com/platform/studio) 
